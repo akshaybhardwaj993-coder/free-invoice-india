@@ -5,13 +5,13 @@ export default function AdScripts() {
   const [showPushPrompt, setShowPushPrompt] = useState(false);
 
   useEffect(() => {
-    // 1. POPUNDER: Load only after first user click to avoid browser blockers
+    // 1. POPUNDER: Load only after first user click
     let popunderLoaded = false;
     const handleFirstInteraction = () => {
       if (popunderLoaded) return;
       const script = document.createElement('script');
-      // TODO: Replace with your actual Monetag Popunder script URL later
-      script.src = 'https://example.com/popunder.js'; 
+      script.src = 'https://al5sm.com/tag.min.js';
+      script.dataset.zone = '12129641';
       script.async = true;
       document.body.appendChild(script);
       popunderLoaded = true;
@@ -31,9 +31,9 @@ export default function AdScripts() {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        // TODO: Replace with your actual Monetag Push script URL later
         const script = document.createElement('script');
-        script.src = 'https://example.com/push.js';
+        script.src = 'https://5gvci.com/act/files/tag.min.js?z=12129612';
+        script.dataset.cfasync = 'false';
         script.async = true;
         document.head.appendChild(script);
         localStorage.setItem('push_subscribed', 'true');
