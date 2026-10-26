@@ -13,7 +13,6 @@ export default function InvoiceGenerator() {
     invoiceDate: 'YYYY-MM-DD',
   });
 
-  // Generate dynamic values only on the client after the component mounts
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
@@ -55,19 +54,11 @@ export default function InvoiceGenerator() {
     return { subtotal, cgst, sgst, total };
   };
 
-    const handleDownload = () => {
+  const handleDownload = () => {
     // 1. OPEN THE DIRECT LINK AD IN A NEW TAB
     window.open('https://uplcm.com/4/12129654', '_blank');
 
     // 2. THEN GENERATE AND DOWNLOAD THE PDF
-    const totals = calculateTotals();
-    const invoiceData: InvoiceData = {
-      ...formData,
-      items,
-      ...totals
-    };
-    downloadPDF(invoiceData);
-  };
     const totals = calculateTotals();
     const invoiceData: InvoiceData = {
       ...formData,
