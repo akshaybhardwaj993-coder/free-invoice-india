@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { downloadPDF, InvoiceData } from '@/lib/pdf-generator';
 
 export default function InvoiceGenerator() {
@@ -9,9 +9,18 @@ export default function InvoiceGenerator() {
     businessGSTIN: '',
     clientName: '',
     clientAddress: '',
-    invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
-    invoiceDate: new Date().toISOString().split('T')[0],
+    invoiceNumber: 'INV-000000',
+    invoiceDate: 'YYYY-MM-DD',
   });
+
+  // Generate dynamic values only on the client after the component mounts
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      invoiceNumber: `INV-${Math.floor(100000 + Math.random() * 900000)}`,
+      invoiceDate: new Date().toISOString().split('T')[0],
+    }));
+  }, []);
 
   const [items, setItems] = useState([
     { description: '', quantity: 1, rate: 0, amount: 0 }
@@ -103,7 +112,7 @@ export default function InvoiceGenerator() {
 
       <div className="bg-gray-50 p-4 rounded-lg mb-6">
         <div className="flex justify-between mb-2"><span className="text-gray-600">Subtotal:</span><span className="font-semibold">₹{totals.subtotal.toFixed(2)}</span></div>
-        <div className="flex justify-between mb-2"><span className="text-gray-600">CGST (9%):</span><span className="font-semibold">{totals.cgst.toFixed(2)}</span></div>
+        <div className="flex justify-between mb-2"><span className="text-gray-600">CGST (9%):</span><span className="font-semibold">₹{totals.cgst.toFixed(2)}</span></div>
         <div className="flex justify-between mb-2"><span className="text-gray-600">SGST (9%):</span><span className="font-semibold">₹{totals.sgst.toFixed(2)}</span></div>
         <div className="flex justify-between text-lg font-bold border-t pt-2"><span>Total:</span><span className="text-blue-600">₹{totals.total.toFixed(2)}</span></div>
       </div>
