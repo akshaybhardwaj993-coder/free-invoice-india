@@ -33,7 +33,6 @@ const InvoiceDocument = ({ data }: { data: InvoiceData }) => (
   <Document>
     <Page size="A4" style={styles.page}>
       <Text style={styles.header}>TAX INVOICE</Text>
-      
       <View style={styles.section}>
         <View style={styles.row}>
           <Text style={styles.label}>From:</Text>
@@ -50,7 +49,6 @@ const InvoiceDocument = ({ data }: { data: InvoiceData }) => (
           </View>
         )}
       </View>
-
       <View style={styles.section}>
         <View style={styles.row}>
           <Text style={styles.label}>Bill To:</Text>
@@ -61,7 +59,6 @@ const InvoiceDocument = ({ data }: { data: InvoiceData }) => (
           <Text style={styles.value}>{data.clientAddress}</Text>
         </View>
       </View>
-
       <View style={styles.section}>
         <View style={styles.row}>
           <Text style={styles.label}>Invoice #:</Text>
@@ -72,13 +69,12 @@ const InvoiceDocument = ({ data }: { data: InvoiceData }) => (
           <Text style={styles.value}>{data.invoiceDate}</Text>
         </View>
       </View>
-
       <View style={styles.table}>
         <View style={styles.tableHeader}>
           <Text style={{ flex: 3 }}>Description</Text>
           <Text style={{ flex: 1, textAlign: 'center' }}>Qty</Text>
-          <Text style={{ flex: 1, textAlign: 'right' }}>Rate (₹)</Text>
-          <Text style={{ flex: 1, textAlign: 'right' }}>Amount (₹)</Text>
+          <Text style={{ flex: 1, textAlign: 'right' }}>Rate</Text>
+          <Text style={{ flex: 1, textAlign: 'right' }}>Amount</Text>
         </View>
         {data.items.map((item, idx) => (
           <View key={idx} style={styles.tableRow}>
@@ -89,26 +85,22 @@ const InvoiceDocument = ({ data }: { data: InvoiceData }) => (
           </View>
         ))}
       </View>
-
       <View style={styles.section}>
         <View style={styles.row}>
           <Text style={styles.label}>Subtotal:</Text>
-          <Text style={styles.value}>₹{data.subtotal.toFixed(2)}</Text>
+          <Text style={styles.value}>Rs.{data.subtotal.toFixed(2)}</Text>
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>CGST (9%):</Text>
-          <Text style={styles.value}>₹{data.cgst.toFixed(2)}</Text>
+          <Text style={styles.value}>Rs.{data.cgst.toFixed(2)}</Text>
         </View>
         <View style={styles.row}>
           <Text style={styles.label}>SGST (9%):</Text>
-          <Text style={styles.value}>₹{data.sgst.toFixed(2)}</Text>
+          <Text style={styles.value}>Rs.{data.sgst.toFixed(2)}</Text>
         </View>
-        <Text style={styles.total}>Total: ₹{data.total.toFixed(2)}</Text>
+        <Text style={styles.total}>Total: Rs.{data.total.toFixed(2)}</Text>
       </View>
-
-      <Text style={styles.footer}>
-        Generated free via free-invoice-india.vercel.app | This is a computer-generated invoice
-      </Text>
+      <Text style={styles.footer}>Generated free via free-invoice-india.vercel.app</Text>
     </Page>
   </Document>
 );
