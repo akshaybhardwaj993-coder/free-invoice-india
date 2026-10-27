@@ -30,7 +30,10 @@ interface InvoiceData {
   cgst: number;
   sgst: number;
   igst: number;
+  tds: number;
+  tdsRate: number;
   total: number;
+  amountPayable: number;
 }
 
 const InvoiceDocument = ({ data }: { data: InvoiceData }) => (
@@ -117,7 +120,18 @@ const InvoiceDocument = ({ data }: { data: InvoiceData }) => (
             </View>
           </>
         )}
+        {data.tds > 0 && (
+          <View style={styles.row}>
+            <Text style={styles.label}>TDS ({data.tdsRate}%):</Text>
+            <Text style={styles.value}>- Rs.{data.tds.toFixed(2)}</Text>
+          </View>
+        )}
         <Text style={styles.total}>Total: Rs.{data.total.toFixed(2)}</Text>
+        {data.tds > 0 && (
+          <Text style={{ ...styles.total, fontSize: 12, color: '#666', marginTop: 5 }}>
+            Amount Payable: Rs.{data.amountPayable.toFixed(2)} (after TDS)
+          </Text>
+        )}
       </View>
       <Text style={styles.footer}>Generated free via free-invoice-india.vercel.app</Text>
     </Page>

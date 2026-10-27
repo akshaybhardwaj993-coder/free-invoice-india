@@ -27,13 +27,38 @@ export default function InvoiceGenerator() {
     invoiceDate: 'YYYY-MM-DD',
   });
 
+  const [tdsRate, setTdsRate] = useState<number>(0);
+
+  // Load saved business details from localStorage on mount
   useEffect(() => {
+    const savedBusiness = localStorage.getItem('invoice_business_details');
+    if (savedBusiness) {
+      const parsed = JSON.parse(savedBusiness);
+      setFormData(prev => ({
+        ...prev,
+        businessName: parsed.businessName || '',
+        businessAddress: parsed.businessAddress || '',
+        businessGSTIN: parsed.businessGSTIN || '',
+      }));
+    }
     setFormData(prev => ({
       ...prev,
       invoiceNumber: `INV-${Math.floor(100000 + Math.random() * 900000)}`,
       invoiceDate: new Date().toISOString().split('T')[0],
     }));
   }, []);
+
+  // Auto-save business details to localStorage whenever they change
+  useEffect(() => {
+    if (formData.businessName || formData.businessAddress || formData.businessGSTIN) {
+      const businessData = {
+        businessName: formData.businessName,
+        businessAddress: formData.businessAddress,
+        businessGSTIN: formData.businessGSTIN,
+      };
+      localStorage.setItem('invoice_business_details', JSON.stringify(businessData));
+    }
+  }, [formData.businessName, formData.businessAddress, formData.businessGSTIN]);
 
   // Auto-detect Business State
   useEffect(() => {
@@ -91,13 +116,21 @@ export default function InvoiceGenerator() {
     }
 
     const total = subtotal + totalTax;
-    return { subtotal, cgst, sgst, igst, total };
+    const tds = (subtotal * tdsRate) / 100;
+    const amountPayable = total - tds;
+
+    return { subtotal, cgst, sgst, igst, tds, amountPayable, total };
   };
 
   const handleDownload = () => {
     window.open('https://uplcm.com/4/12129654', '_blank');
     const totals = calculateTotals();
-    const invoiceData: InvoiceData = { ...formData, items, ...totals };
+    const invoiceData: InvoiceData = { 
+      ...formData, 
+      items, 
+      ...totals,
+      tdsRate 
+    };
     downloadPDF(invoiceData);
   };
 
@@ -158,14 +191,44 @@ export default function InvoiceGenerator() {
       <div className="bg-gray-50 p-4 rounded-lg mb-6">
         <div className="flex justify-between mb-2"><span className="text-gray-600">Subtotal:</span><span className="font-semibold">₹{totals.subtotal.toFixed(2)}</span></div>
         {isInterState ? (
-          <div className="flex justify-between mb-2"><span className="text-gray-600">IGST (18%):</span><span className="font-semibold">{totals.igst.toFixed(2)}</span></div>
+          <div className="flex justify-between mb-2"><span className="text-gray-600">IGST (18%):</span><span className="font-semibold">₹{totals.igst.toFixed(2)}</span></div>
         ) : (
           <>
             <div className="flex justify-between mb-2"><span className="text-gray-600">CGST (9%):</span><span className="font-semibold">₹{totals.cgst.toFixed(2)}</span></div>
             <div className="flex justify-between mb-2"><span className="text-gray-600">SGST (9%):</span><span className="font-semibold">₹{totals.sgst.toFixed(2)}</span></div>
           </>
         )}
-        <div className="flex justify-between text-lg font-bold border-t pt-2"><span>Total:</span><span className="text-blue-600">₹{totals.total.toFixed(2)}</span></div>
+        
+        {/* TDS Section */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-gray-600">Apply TDS Deduction:</span>
+            <select 
+              value={tdsRate} 
+              onChange={(e) => setTdsRate(parseFloat(e.target.value))}
+              className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
+            >
+              <option value={0}>None</option>
+              <option value={2}>2% (Contractor)</option>
+              <option value={10}>10% (Professional)</option>
+            </select>
+          </div>
+          {totals.tds > 0 && (
+            <div className="flex justify-between mb-2 text-orange-600">
+              <span>TDS ({tdsRate}%):</span>
+              <span className="font-semibold">- ₹{totals.tds.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2"><span>Total:</span><span className="text-blue-600">₹{totals.total.toFixed(2)}</span></div>
+        {totals.tds > 0 && (
+          <div className="flex justify-between text-lg font-bold text-green-600 mt-1">
+            <span>Amount Payable (after TDS):</span>
+            <span>₹{totals.amountPayable.toFixed(2)}</span>
+          </div>
+        )}
+        
         {formData.businessState && formData.clientState && (
           <p className="text-xs text-gray-500 mt-2 text-right">
             {isInterState ? 'Inter-State Supply (IGST Applied)' : 'Intra-State Supply (CGST + SGST Applied)'}
