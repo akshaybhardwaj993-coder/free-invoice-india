@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { downloadPDF, InvoiceData } from '@/lib/pdf-generator';
 
-// Mapping of GSTIN State Codes to State Names
 const stateCodes: Record<string, string> = {
   '01': 'Jammu & Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh',
   '05': 'Uttarakhand', '06': 'Haryana', '07': 'Delhi', '08': 'Rajasthan', '09': 'Uttar Pradesh',
@@ -22,7 +21,8 @@ export default function InvoiceGenerator() {
     businessState: '',
     clientName: '',
     clientAddress: '',
-    clientState: 'Maharashtra', // Default client state
+    clientGSTIN: '',
+    clientState: 'Maharashtra',
     invoiceNumber: 'INV-000000',
     invoiceDate: 'YYYY-MM-DD',
   });
@@ -35,7 +35,7 @@ export default function InvoiceGenerator() {
     }));
   }, []);
 
-  // Auto-detect state from GSTIN
+  // Auto-detect Business State
   useEffect(() => {
     const gstin = formData.businessGSTIN.trim().toUpperCase();
     if (gstin.length >= 4) {
@@ -44,12 +44,20 @@ export default function InvoiceGenerator() {
       if (state && state !== formData.businessState) {
         setFormData(prev => ({ ...prev, businessState: state }));
       }
-    } else {
-      if (formData.businessState) {
-        setFormData(prev => ({ ...prev, businessState: '' }));
-      }
     }
   }, [formData.businessGSTIN]);
+
+  // Auto-detect Client State
+  useEffect(() => {
+    const gstin = formData.clientGSTIN.trim().toUpperCase();
+    if (gstin.length >= 4) {
+      const code = gstin.substring(2, 4);
+      const state = stateCodes[code] || '';
+      if (state && state !== formData.clientState) {
+        setFormData(prev => ({ ...prev, clientState: state }));
+      }
+    }
+  }, [formData.clientGSTIN]);
 
   const [items, setItems] = useState([
     { description: '', quantity: 1, rate: 0, amount: 0 }
@@ -70,16 +78,15 @@ export default function InvoiceGenerator() {
 
   const calculateTotals = () => {
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-    const taxRate = 0.18; // 18% Total GST
+    const taxRate = 0.18; 
     const totalTax = subtotal * taxRate;
     
     let cgst = 0, sgst = 0, igst = 0;
 
-    // Intra-state vs Inter-state logic
     if (formData.businessState && formData.clientState && formData.businessState !== formData.clientState) {
-      igst = totalTax; // Inter-state: IGST
+      igst = totalTax; 
     } else {
-      cgst = totalTax / 2; // Intra-state: CGST + SGST
+      cgst = totalTax / 2; 
       sgst = totalTax / 2;
     }
 
@@ -106,7 +113,7 @@ export default function InvoiceGenerator() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input type="text" placeholder="Business Name *" value={formData.businessName} onChange={(e) => setFormData({...formData, businessName: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg" required />
           <input type="text" placeholder="Business Address" value={formData.businessAddress} onChange={(e) => setFormData({...formData, businessAddress: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg" />
-          <input type="text" placeholder="GSTIN (Auto-detects State)" value={formData.businessGSTIN} onChange={(e) => setFormData({...formData, businessGSTIN: e.target.value.toUpperCase()})} className="px-4 py-2 border border-gray-300 rounded-lg" maxLength={15} />
+          <input type="text" placeholder="Business GSTIN (Auto-detects State)" value={formData.businessGSTIN} onChange={(e) => setFormData({...formData, businessGSTIN: e.target.value.toUpperCase()})} className="px-4 py-2 border border-gray-300 rounded-lg" maxLength={15} />
           <input type="text" placeholder="State (Auto-detected)" value={formData.businessState} readOnly className="px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600" />
         </div>
       </div>
@@ -115,7 +122,8 @@ export default function InvoiceGenerator() {
         <h3 className="text-lg font-semibold mb-3 text-gray-800">Client Details</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input type="text" placeholder="Client Name *" value={formData.clientName} onChange={(e) => setFormData({...formData, clientName: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg" required />
-          <input type="text" placeholder="Client Address" value={formData.clientAddress} onChange={(e) => setFormData({...formData, clientAddress: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg" />
+          <input type="text" placeholder="Client GSTIN (Auto-detects State)" value={formData.clientGSTIN} onChange={(e) => setFormData({...formData, clientGSTIN: e.target.value.toUpperCase()})} className="px-4 py-2 border border-gray-300 rounded-lg" maxLength={15} />
+          <input type="text" placeholder="Client Address" value={formData.clientAddress} onChange={(e) => setFormData({...formData, clientAddress: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg md:col-span-2" />
           <select value={formData.clientState} onChange={(e) => setFormData({...formData, clientState: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg md:col-span-2">
             <option value="">Select Client State</option>
             {Object.values(stateCodes).map(state => (
@@ -150,14 +158,14 @@ export default function InvoiceGenerator() {
       <div className="bg-gray-50 p-4 rounded-lg mb-6">
         <div className="flex justify-between mb-2"><span className="text-gray-600">Subtotal:</span><span className="font-semibold">₹{totals.subtotal.toFixed(2)}</span></div>
         {isInterState ? (
-          <div className="flex justify-between mb-2"><span className="text-gray-600">IGST (18%):</span><span className="font-semibold">₹{totals.igst.toFixed(2)}</span></div>
+          <div className="flex justify-between mb-2"><span className="text-gray-600">IGST (18%):</span><span className="font-semibold">{totals.igst.toFixed(2)}</span></div>
         ) : (
           <>
-            <div className="flex justify-between mb-2"><span className="text-gray-600">CGST (9%):</span><span className="font-semibold">{totals.cgst.toFixed(2)}</span></div>
+            <div className="flex justify-between mb-2"><span className="text-gray-600">CGST (9%):</span><span className="font-semibold">₹{totals.cgst.toFixed(2)}</span></div>
             <div className="flex justify-between mb-2"><span className="text-gray-600">SGST (9%):</span><span className="font-semibold">₹{totals.sgst.toFixed(2)}</span></div>
           </>
         )}
-        <div className="flex justify-between text-lg font-bold border-t pt-2"><span>Total:</span><span className="text-blue-600">{totals.total.toFixed(2)}</span></div>
+        <div className="flex justify-between text-lg font-bold border-t pt-2"><span>Total:</span><span className="text-blue-600">₹{totals.total.toFixed(2)}</span></div>
         {formData.businessState && formData.clientState && (
           <p className="text-xs text-gray-500 mt-2 text-right">
             {isInterState ? 'Inter-State Supply (IGST Applied)' : 'Intra-State Supply (CGST + SGST Applied)'}

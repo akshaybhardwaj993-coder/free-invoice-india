@@ -18,14 +18,18 @@ interface InvoiceData {
   businessName: string;
   businessAddress: string;
   businessGSTIN: string;
+  businessState: string;
   clientName: string;
   clientAddress: string;
+  clientGSTIN: string;
+  clientState: string;
   invoiceNumber: string;
   invoiceDate: string;
   items: Array<{ description: string; quantity: number; rate: number; amount: number }>;
   subtotal: number;
   cgst: number;
   sgst: number;
+  igst: number;
   total: number;
 }
 
@@ -45,7 +49,7 @@ const InvoiceDocument = ({ data }: { data: InvoiceData }) => (
         {data.businessGSTIN && (
           <View style={styles.row}>
             <Text style={styles.label}>GSTIN:</Text>
-            <Text style={styles.value}>{data.businessGSTIN}</Text>
+            <Text style={styles.value}>{data.businessGSTIN} ({data.businessState})</Text>
           </View>
         )}
       </View>
@@ -58,6 +62,12 @@ const InvoiceDocument = ({ data }: { data: InvoiceData }) => (
           <Text style={styles.label}></Text>
           <Text style={styles.value}>{data.clientAddress}</Text>
         </View>
+        {data.clientGSTIN && (
+          <View style={styles.row}>
+            <Text style={styles.label}>Client GSTIN:</Text>
+            <Text style={styles.value}>{data.clientGSTIN} ({data.clientState})</Text>
+          </View>
+        )}
       </View>
       <View style={styles.section}>
         <View style={styles.row}>
@@ -90,14 +100,23 @@ const InvoiceDocument = ({ data }: { data: InvoiceData }) => (
           <Text style={styles.label}>Subtotal:</Text>
           <Text style={styles.value}>Rs.{data.subtotal.toFixed(2)}</Text>
         </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>CGST (9%):</Text>
-          <Text style={styles.value}>Rs.{data.cgst.toFixed(2)}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>SGST (9%):</Text>
-          <Text style={styles.value}>Rs.{data.sgst.toFixed(2)}</Text>
-        </View>
+        {data.igst > 0 ? (
+          <View style={styles.row}>
+            <Text style={styles.label}>IGST (18%):</Text>
+            <Text style={styles.value}>Rs.{data.igst.toFixed(2)}</Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.row}>
+              <Text style={styles.label}>CGST (9%):</Text>
+              <Text style={styles.value}>Rs.{data.cgst.toFixed(2)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>SGST (9%):</Text>
+              <Text style={styles.value}>Rs.{data.sgst.toFixed(2)}</Text>
+            </View>
+          </>
+        )}
         <Text style={styles.total}>Total: Rs.{data.total.toFixed(2)}</Text>
       </View>
       <Text style={styles.footer}>Generated free via free-invoice-india.vercel.app</Text>
