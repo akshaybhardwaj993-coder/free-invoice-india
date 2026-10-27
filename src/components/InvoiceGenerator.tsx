@@ -28,8 +28,8 @@ export default function InvoiceGenerator() {
   });
 
   const [tdsRate, setTdsRate] = useState<number>(0);
+  const [isExport, setIsExport] = useState(false);
 
-  // Load saved business details from localStorage on mount
   useEffect(() => {
     const savedBusiness = localStorage.getItem('invoice_business_details');
     if (savedBusiness) {
@@ -48,7 +48,6 @@ export default function InvoiceGenerator() {
     }));
   }, []);
 
-  // Auto-save business details to localStorage whenever they change
   useEffect(() => {
     if (formData.businessName || formData.businessAddress || formData.businessGSTIN) {
       const businessData = {
@@ -60,7 +59,6 @@ export default function InvoiceGenerator() {
     }
   }, [formData.businessName, formData.businessAddress, formData.businessGSTIN]);
 
-  // Auto-detect Business State
   useEffect(() => {
     const gstin = formData.businessGSTIN.trim().toUpperCase();
     if (gstin.length >= 4) {
@@ -72,7 +70,6 @@ export default function InvoiceGenerator() {
     }
   }, [formData.businessGSTIN]);
 
-  // Auto-detect Client State
   useEffect(() => {
     const gstin = formData.clientGSTIN.trim().toUpperCase();
     if (gstin.length >= 4) {
@@ -85,10 +82,10 @@ export default function InvoiceGenerator() {
   }, [formData.clientGSTIN]);
 
   const [items, setItems] = useState([
-    { description: '', quantity: 1, rate: 0, amount: 0 }
+    { description: '', hsn: '', quantity: 1, rate: 0, amount: 0 }
   ]);
 
-  const addItem = () => setItems([...items, { description: '', quantity: 1, rate: 0, amount: 0 }]);
+  const addItem = () => setItems([...items, { description: '', hsn: '', quantity: 1, rate: 0, amount: 0 }]);
   const removeItem = (index: number) => {
     if (items.length > 1) setItems(items.filter((_, i) => i !== index));
   };
@@ -104,22 +101,25 @@ export default function InvoiceGenerator() {
   const calculateTotals = () => {
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
     const taxRate = 0.18; 
-    const totalTax = subtotal * taxRate;
+    const totalTax = isExport ? 0 : subtotal * taxRate;
     
     let cgst = 0, sgst = 0, igst = 0;
 
-    if (formData.businessState && formData.clientState && formData.businessState !== formData.clientState) {
-      igst = totalTax; 
-    } else {
-      cgst = totalTax / 2; 
-      sgst = totalTax / 2;
+    if (!isExport) {
+      if (formData.businessState && formData.clientState && formData.businessState !== formData.clientState) {
+        igst = totalTax; 
+      } else {
+        cgst = totalTax / 2; 
+        sgst = totalTax / 2;
+      }
     }
 
     const total = subtotal + totalTax;
     const tds = (subtotal * tdsRate) / 100;
     const amountPayable = total - tds;
+    const currency = isExport ? '$' : '₹';
 
-    return { subtotal, cgst, sgst, igst, tds, amountPayable, total };
+    return { subtotal, cgst, sgst, igst, tds, amountPayable, total, currency };
   };
 
   const handleDownload = () => {
@@ -129,17 +129,24 @@ export default function InvoiceGenerator() {
       ...formData, 
       items, 
       ...totals,
-      tdsRate 
+      tdsRate,
+      isExport 
     };
     downloadPDF(invoiceData);
   };
 
   const totals = calculateTotals();
-  const isInterState = formData.businessState !== '' && formData.clientState !== '' && formData.businessState !== formData.clientState;
+  const isInterState = !isExport && formData.businessState !== '' && formData.clientState !== '' && formData.businessState !== formData.clientState;
 
   return (
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-gray-100 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6 text-gray-900">Generate Your Free GST Invoice</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Generate Your Free Invoice</h2>
+        <label className="flex items-center space-x-2 cursor-pointer bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+          <input type="checkbox" checked={isExport} onChange={(e) => setIsExport(e.target.checked)} className="w-4 h-4 text-blue-600 rounded" />
+          <span className="text-sm font-medium text-blue-700">Export Invoice (No GST, USD)</span>
+        </label>
+      </div>
       
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-3 text-gray-800">Your Business Details</h3>
@@ -157,12 +164,14 @@ export default function InvoiceGenerator() {
           <input type="text" placeholder="Client Name *" value={formData.clientName} onChange={(e) => setFormData({...formData, clientName: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg" required />
           <input type="text" placeholder="Client GSTIN (Auto-detects State)" value={formData.clientGSTIN} onChange={(e) => setFormData({...formData, clientGSTIN: e.target.value.toUpperCase()})} className="px-4 py-2 border border-gray-300 rounded-lg" maxLength={15} />
           <input type="text" placeholder="Client Address" value={formData.clientAddress} onChange={(e) => setFormData({...formData, clientAddress: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg md:col-span-2" />
-          <select value={formData.clientState} onChange={(e) => setFormData({...formData, clientState: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg md:col-span-2">
-            <option value="">Select Client State</option>
-            {Object.values(stateCodes).map(state => (
-              <option key={state} value={state}>{state}</option>
-            ))}
-          </select>
+          {!isExport && (
+            <select value={formData.clientState} onChange={(e) => setFormData({...formData, clientState: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg md:col-span-2">
+              <option value="">Select Client State</option>
+              {Object.values(stateCodes).map(state => (
+                <option key={state} value={state}>{state}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -176,12 +185,21 @@ export default function InvoiceGenerator() {
 
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-3 text-gray-800">Items/Services</h3>
+        <div className="hidden md:grid grid-cols-12 gap-2 mb-2 px-2 text-xs font-semibold text-gray-500">
+          <div className="col-span-4">Description</div>
+          <div className="col-span-2">HSN/SAC</div>
+          <div className="col-span-2 text-center">Qty</div>
+          <div className="col-span-2 text-right">Rate ({totals.currency})</div>
+          <div className="col-span-1 text-right">Amount</div>
+          <div className="col-span-1"></div>
+        </div>
         {items.map((item, index) => (
           <div key={index} className="grid grid-cols-12 gap-2 mb-3 items-center">
-            <input type="text" placeholder="Description" value={item.description} onChange={(e) => updateItem(index, 'description', e.target.value)} className="col-span-5 px-3 py-2 border border-gray-300 rounded-lg" />
+            <input type="text" placeholder="Description" value={item.description} onChange={(e) => updateItem(index, 'description', e.target.value)} className="col-span-4 px-3 py-2 border border-gray-300 rounded-lg" />
+            <input type="text" placeholder="HSN/SAC" value={item.hsn} onChange={(e) => updateItem(index, 'hsn', e.target.value)} className="col-span-2 px-3 py-2 border border-gray-300 rounded-lg" />
             <input type="number" placeholder="Qty" value={item.quantity} onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)} className="col-span-2 px-3 py-2 border border-gray-300 rounded-lg" min="1" />
-            <input type="number" placeholder="Rate (₹)" value={item.rate || ''} onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)} className="col-span-2 px-3 py-2 border border-gray-300 rounded-lg" min="0" />
-            <div className="col-span-2 px-3 py-2 bg-gray-50 rounded-lg text-right font-semibold">₹{item.amount.toFixed(2)}</div>
+            <input type="number" placeholder="Rate" value={item.rate || ''} onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)} className="col-span-2 px-3 py-2 border border-gray-300 rounded-lg" min="0" />
+            <div className="col-span-1 px-3 py-2 bg-gray-50 rounded-lg text-right font-semibold text-sm">{totals.currency}{item.amount.toFixed(2)}</div>
             <button onClick={() => removeItem(index)} className="col-span-1 text-red-500 hover:text-red-700 font-bold" disabled={items.length === 1}>×</button>
           </div>
         ))}
@@ -189,17 +207,20 @@ export default function InvoiceGenerator() {
       </div>
 
       <div className="bg-gray-50 p-4 rounded-lg mb-6">
-        <div className="flex justify-between mb-2"><span className="text-gray-600">Subtotal:</span><span className="font-semibold">₹{totals.subtotal.toFixed(2)}</span></div>
-        {isInterState ? (
-          <div className="flex justify-between mb-2"><span className="text-gray-600">IGST (18%):</span><span className="font-semibold">₹{totals.igst.toFixed(2)}</span></div>
-        ) : (
+        <div className="flex justify-between mb-2"><span className="text-gray-600">Subtotal:</span><span className="font-semibold">{totals.currency}{totals.subtotal.toFixed(2)}</span></div>
+        {!isExport && (
           <>
-            <div className="flex justify-between mb-2"><span className="text-gray-600">CGST (9%):</span><span className="font-semibold">₹{totals.cgst.toFixed(2)}</span></div>
-            <div className="flex justify-between mb-2"><span className="text-gray-600">SGST (9%):</span><span className="font-semibold">₹{totals.sgst.toFixed(2)}</span></div>
+            {isInterState ? (
+              <div className="flex justify-between mb-2"><span className="text-gray-600">IGST (18%):</span><span className="font-semibold">{totals.currency}{totals.igst.toFixed(2)}</span></div>
+            ) : (
+              <>
+                <div className="flex justify-between mb-2"><span className="text-gray-600">CGST (9%):</span><span className="font-semibold">{totals.currency}{totals.cgst.toFixed(2)}</span></div>
+                <div className="flex justify-between mb-2"><span className="text-gray-600">SGST (9%):</span><span className="font-semibold">{totals.currency}{totals.sgst.toFixed(2)}</span></div>
+              </>
+            )}
           </>
         )}
         
-        {/* TDS Section */}
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <span className="text-gray-600">Apply TDS Deduction:</span>
@@ -216,28 +237,33 @@ export default function InvoiceGenerator() {
           {totals.tds > 0 && (
             <div className="flex justify-between mb-2 text-orange-600">
               <span>TDS ({tdsRate}%):</span>
-              <span className="font-semibold">- ₹{totals.tds.toFixed(2)}</span>
+              <span className="font-semibold">- {totals.currency}{totals.tds.toFixed(2)}</span>
             </div>
           )}
         </div>
 
-        <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2"><span>Total:</span><span className="text-blue-600">₹{totals.total.toFixed(2)}</span></div>
+        <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2"><span>Total:</span><span className="text-blue-600">{totals.currency}{totals.total.toFixed(2)}</span></div>
         {totals.tds > 0 && (
           <div className="flex justify-between text-lg font-bold text-green-600 mt-1">
             <span>Amount Payable (after TDS):</span>
-            <span>₹{totals.amountPayable.toFixed(2)}</span>
+            <span>{totals.currency}{totals.amountPayable.toFixed(2)}</span>
           </div>
         )}
         
-        {formData.businessState && formData.clientState && (
+        {!isExport && formData.businessState && formData.clientState && (
           <p className="text-xs text-gray-500 mt-2 text-right">
             {isInterState ? 'Inter-State Supply (IGST Applied)' : 'Intra-State Supply (CGST + SGST Applied)'}
+          </p>
+        )}
+        {isExport && (
+          <p className="text-xs text-blue-500 mt-2 text-right font-medium">
+            Export Supply under LUT (No Tax Applied)
           </p>
         )}
       </div>
 
       <button onClick={handleDownload} disabled={!formData.businessName || !formData.clientName || items.some(i => !i.description)} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg">
-        Download Free GST Invoice PDF
+        Download Free Invoice PDF
       </button>
     </div>
   );
