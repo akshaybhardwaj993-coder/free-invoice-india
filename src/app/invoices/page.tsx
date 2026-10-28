@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { downloadPDF, InvoiceData } from '@/lib/pdf-generator';
 
 export default function MyInvoices() {
   const [user, setUser] = useState<any>(null);
@@ -18,7 +19,6 @@ export default function MyInvoices() {
       }
       setUser(user);
       
-      // Fetch invoices
       const { data, error } = await supabase
         .from('invoices')
         .select('*')
@@ -29,6 +29,12 @@ export default function MyInvoices() {
     };
     checkUser();
   }, []);
+
+  const handleDownload = (invoice: any) => {
+    // Reconstruct the invoice data from the JSON column
+    const invoiceData = invoice.invoice_data as InvoiceData;
+    downloadPDF(invoiceData);
+  };
 
   const deleteInvoice = async (id: string) => {
     if (!confirm('Are you sure you want to delete this invoice?')) return;
@@ -62,9 +68,19 @@ export default function MyInvoices() {
                 <div className="col-span-3 text-sm text-gray-600">{new Date(inv.created_at).toLocaleDateString('en-IN')}</div>
                 <div className="col-span-4 font-medium text-gray-900">{inv.client_name || 'Unknown Client'}</div>
                 <div className="col-span-3 font-bold text-gray-900">₹{inv.total_amount?.toFixed(2) || '0.00'}</div>
-                <div className="col-span-2 flex justify-end gap-2">
-                  <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">View</button>
-                  <button onClick={() => deleteInvoice(inv.id)} className="text-red-500 hover:text-red-700 text-sm font-medium">Delete</button>
+                <div className="col-span-2 flex justify-end gap-3">
+                  <button 
+                    onClick={() => handleDownload(inv)} 
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
+                  >
+                    ⬇ PDF
+                  </button>
+                  <button 
+                    onClick={() => deleteInvoice(inv.id)} 
+                    className="text-red-500 hover:text-red-700 text-sm font-medium"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             ))}

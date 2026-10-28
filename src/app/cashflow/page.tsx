@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase/client';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 export default function CashFlow() {
   const [user, setUser] = useState<any>(null);
@@ -70,21 +71,15 @@ export default function CashFlow() {
     setAmount('');
 
     if (user) {
-      // FIX: Added user_id: user.id so the database accepts the row!
       const { error } = await supabase.from('cashflow').insert([{
         type, description: desc, amount: amountNum, transaction_date: dateStr, user_id: user.id
       }]);
-      
-      if (error) {
-        console.error("Database save failed:", error);
-        alert("Failed to save to cloud. Please check console.");
-      }
+      if (error) console.error("Database save failed:", error);
     }
   };
 
   const deleteTransaction = async (id: string) => {
     setTransactions(transactions.filter(t => t.id !== id));
-
     if (user) {
       await supabase.from('cashflow').delete().eq('id', id);
     }
@@ -93,6 +88,12 @@ export default function CashFlow() {
   const totalIn = transactions.filter(t => t.type === 'in').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
   const totalOut = transactions.filter(t => t.type === 'out').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
   const closingBalance = openingBalance + totalIn - totalOut;
+
+  // Chart Data Preparation
+  const chartData = [
+    { name: 'Income', value: totalIn, fill: '#16a34a' }, // Green
+    { name: 'Expense', value: totalOut, fill: '#dc2626' }, // Red
+  ];
 
   if (authLoading) {
     return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading your data...</div>;
@@ -109,6 +110,7 @@ export default function CashFlow() {
         )}
       </div>
 
+      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500 mb-1">Opening Balance</p>
@@ -128,6 +130,31 @@ export default function CashFlow() {
         </div>
       </div>
 
+      {/* NEW: Visual Chart */}
+      {(totalIn > 0 || totalOut > 0) && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800">Financial Overview</h3>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <XAxis dataKey="name" tick={{ fill: '#6b7280' }} />
+                <YAxis tick={{ fill: '#6b7280' }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                  formatter={(value: number) => [`₹${value.toFixed(2)}`, 'Amount']}
+                />
+                <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={60}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Add Transaction Form */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
         <h2 className="text-lg font-semibold mb-4">Add Transaction</h2>
         <form onSubmit={addTransaction} className="flex flex-col md:flex-row gap-4">
@@ -141,6 +168,7 @@ export default function CashFlow() {
         </form>
       </div>
 
+      {/* Transaction List */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 border-b border-gray-100 font-semibold text-gray-700">Recent Transactions</div>
         {transactions.length === 0 ? (
