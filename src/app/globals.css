@@ -1,7 +1,6 @@
-@import "tailwindcss";
-
-/* This enables the 'dark' class for dark mode in v4 */
-@custom-variant dark (&:is(.dark *));
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 body {
   margin: 0;
