@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { downloadPDF, InvoiceData } from '@/lib/pdf-generator';
 import { supabase } from '@/utils/supabase/client';
+import { Upload, Palette } from 'lucide-react';
 
 const stateCodes: Record<string, string> = {
   '01': 'Jammu & Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh',
@@ -17,52 +18,47 @@ const stateCodes: Record<string, string> = {
 export default function InvoiceGenerator() {
   const [user, setUser] = useState<any>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  
+  // Brand Settings State
+  const [brandColor, setBrandColor] = useState('#2563eb');
+  const [businessLogo, setBusinessLogo] = useState<string>('');
 
   const [formData, setFormData] = useState({
-    businessName: '',
-    businessAddress: '',
-    businessGSTIN: '',
-    businessState: '',
-    clientName: '',
-    clientAddress: '',
-    clientGSTIN: '',
-    clientState: 'Maharashtra',
-    invoiceNumber: 'INV-000000',
-    invoiceDate: 'YYYY-MM-DD',
+    businessName: '', businessAddress: '', businessGSTIN: '', businessState: '',
+    clientName: '', clientAddress: '', clientGSTIN: '', clientState: 'Maharashtra',
+    invoiceNumber: 'INV-000000', invoiceDate: 'YYYY-MM-DD',
   });
 
   const [tdsRate, setTdsRate] = useState<number>(0);
   const [isExport, setIsExport] = useState(false);
 
   useEffect(() => {
-    // Check auth status
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+    
+    // Load saved brand settings
+    const savedBrand = localStorage.getItem('zapbill_brand_settings');
+    if (savedBrand) {
+      const parsed = JSON.parse(savedBrand);
+      if (parsed.brandColor) setBrandColor(parsed.brandColor);
+      if (parsed.businessLogo) setBusinessLogo(parsed.businessLogo);
+    }
 
     const savedBusiness = localStorage.getItem('invoice_business_details');
     if (savedBusiness) {
       const parsed = JSON.parse(savedBusiness);
-      setFormData(prev => ({
-        ...prev,
-        businessName: parsed.businessName || '',
-        businessAddress: parsed.businessAddress || '',
-        businessGSTIN: parsed.businessGSTIN || '',
-      }));
+      setFormData(prev => ({ ...prev, businessName: parsed.businessName || '', businessAddress: parsed.businessAddress || '', businessGSTIN: parsed.businessGSTIN || '' }));
     }
-    setFormData(prev => ({
-      ...prev,
-      invoiceNumber: `INV-${Math.floor(100000 + Math.random() * 900000)}`,
-      invoiceDate: new Date().toISOString().split('T')[0],
-    }));
+    setFormData(prev => ({ ...prev, invoiceNumber: `INV-${Math.floor(100000 + Math.random() * 900000)}`, invoiceDate: new Date().toISOString().split('T')[0] }));
   }, []);
+
+  // Save brand settings whenever they change
+  useEffect(() => {
+    localStorage.setItem('zapbill_brand_settings', JSON.stringify({ brandColor, businessLogo }));
+  }, [brandColor, businessLogo]);
 
   useEffect(() => {
     if (formData.businessName || formData.businessAddress || formData.businessGSTIN) {
-      const businessData = {
-        businessName: formData.businessName,
-        businessAddress: formData.businessAddress,
-        businessGSTIN: formData.businessGSTIN,
-      };
-      localStorage.setItem('invoice_business_details', JSON.stringify(businessData));
+      localStorage.setItem('invoice_business_details', JSON.stringify({ businessName: formData.businessName, businessAddress: formData.businessAddress, businessGSTIN: formData.businessGSTIN }));
     }
   }, [formData.businessName, formData.businessAddress, formData.businessGSTIN]);
 
@@ -71,37 +67,18 @@ export default function InvoiceGenerator() {
     if (gstin.length >= 4) {
       const code = gstin.substring(2, 4);
       const state = stateCodes[code] || '';
-      if (state && state !== formData.businessState) {
-        setFormData(prev => ({ ...prev, businessState: state }));
-      }
+      if (state && state !== formData.businessState) setFormData(prev => ({ ...prev, businessState: state }));
     }
   }, [formData.businessGSTIN]);
 
-  useEffect(() => {
-    const gstin = formData.clientGSTIN.trim().toUpperCase();
-    if (gstin.length >= 4) {
-      const code = gstin.substring(2, 4);
-      const state = stateCodes[code] || '';
-      if (state && state !== formData.clientState) {
-        setFormData(prev => ({ ...prev, clientState: state }));
-      }
-    }
-  }, [formData.clientGSTIN]);
-
-  const [items, setItems] = useState([
-    { description: '', hsn: '', quantity: 1, rate: 0, amount: 0 }
-  ]);
+  const [items, setItems] = useState([{ description: '', hsn: '', quantity: 1, rate: 0, amount: 0 }]);
 
   const addItem = () => setItems([...items, { description: '', hsn: '', quantity: 1, rate: 0, amount: 0 }]);
-  const removeItem = (index: number) => {
-    if (items.length > 1) setItems(items.filter((_, i) => i !== index));
-  };
+  const removeItem = (index: number) => { if (items.length > 1) setItems(items.filter((_, i) => i !== index)); };
   const updateItem = (index: number, field: string, value: any) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
-    if (field === 'quantity' || field === 'rate') {
-      newItems[index].amount = newItems[index].quantity * newItems[index].rate;
-    }
+    if (field === 'quantity' || field === 'rate') newItems[index].amount = newItems[index].quantity * newItems[index].rate;
     setItems(newItems);
   };
 
@@ -109,78 +86,32 @@ export default function InvoiceGenerator() {
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
     const taxRate = 0.18; 
     const totalTax = isExport ? 0 : subtotal * taxRate;
-    
     let cgst = 0, sgst = 0, igst = 0;
-
     if (!isExport) {
-      if (formData.businessState && formData.clientState && formData.businessState !== formData.clientState) {
-        igst = totalTax; 
-      } else {
-        cgst = totalTax / 2; 
-        sgst = totalTax / 2;
-      }
+      if (formData.businessState && formData.clientState && formData.businessState !== formData.clientState) igst = totalTax; 
+      else { cgst = totalTax / 2; sgst = totalTax / 2; }
     }
-
     const total = subtotal + totalTax;
     const tds = (subtotal * tdsRate) / 100;
     const amountPayable = total - tds;
     const currency = isExport ? '$' : '₹';
-
     return { subtotal, cgst, sgst, igst, tds, amountPayable, total, currency };
   };
 
-  const handleSaveToCloud = async () => {
-    if (!user) {
-      alert("Please log in to save invoices to the cloud.");
-      return;
-    }
-    if (!formData.businessName || !formData.clientName || items.some(i => !i.description)) {
-      alert("Please fill in all required fields (Business Name, Client Name, and at least one Item Description) before saving.");
-      return;
-    }
-
-    setSaveStatus('saving');
-    const totals = calculateTotals();
-    
-    const invoicePayload = {
-      user_id: user.id,
-      invoice_number: formData.invoiceNumber,
-      invoice_date: formData.invoiceDate,
-      business_name: formData.businessName,
-      client_name: formData.clientName,
-      total_amount: totals.total,
-      invoice_data: {
-        ...formData,
-        items,
-        ...totals,
-        tdsRate,
-        isExport
-      }
-    };
-
-    const { error } = await supabase.from('invoices').insert([invoicePayload]);
-
-    if (error) {
-      console.error("Save error:", error);
-      setSaveStatus('error');
-      alert("Failed to save invoice: " + error.message);
-    } else {
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setBusinessLogo(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleDownload = () => {
-    window.open('https://uplcm.com/4/12129654', '_blank');
     const totals = calculateTotals();
-    const invoiceData: InvoiceData = { 
-      ...formData, 
-      items, 
-      ...totals,
-      tdsRate,
-      isExport 
-    };
-    downloadPDF(invoiceData);
+    downloadPDF({ ...formData, items, ...totals, tdsRate, isExport, businessLogo, brandColor } as InvoiceData);
   };
 
   const totals = calculateTotals();
@@ -188,6 +119,29 @@ export default function InvoiceGenerator() {
 
   return (
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-gray-100 max-w-4xl mx-auto">
+      
+      {/* NEW: Brand Settings Section */}
+      <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2"><Palette className="w-4 h-4" /> Brand Settings</h3>
+        <div className="flex flex-wrap gap-6 items-center">
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-gray-600">Brand Color:</label>
+            <input type="color" value={brandColor} onChange={(e) => setBrandColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer border-0 p-0" />
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-gray-600">Business Logo:</label>
+            <label className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border border-gray-300 cursor-pointer hover:bg-gray-100 text-sm">
+              <Upload className="w-4 h-4" />
+              {businessLogo ? 'Change Logo' : 'Upload Logo'}
+              <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+            </label>
+            {businessLogo && (
+              <button onClick={() => setBusinessLogo('')} className="text-xs text-red-500 hover:underline">Remove</button>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Generate Your Free Invoice</h2>
         <label className="flex items-center space-x-2 cursor-pointer bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
@@ -215,9 +169,7 @@ export default function InvoiceGenerator() {
           {!isExport && (
             <select value={formData.clientState} onChange={(e) => setFormData({...formData, clientState: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg md:col-span-2">
               <option value="">Select Client State</option>
-              {Object.values(stateCodes).map(state => (
-                <option key={state} value={state}>{state}</option>
-              ))}
+              {Object.values(stateCodes).map(state => (<option key={state} value={state}>{state}</option>))}
             </select>
           )}
         </div>
@@ -268,15 +220,10 @@ export default function InvoiceGenerator() {
             )}
           </>
         )}
-        
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex items-center justify-between mb-2">
             <span className="text-gray-600">Apply TDS Deduction:</span>
-            <select 
-              value={tdsRate} 
-              onChange={(e) => setTdsRate(parseFloat(e.target.value))}
-              className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
-            >
+            <select value={tdsRate} onChange={(e) => setTdsRate(parseFloat(e.target.value))} className="px-3 py-1 border border-gray-300 rounded-lg text-sm">
               <option value={0}>None</option>
               <option value={2}>2% (Contractor)</option>
               <option value={10}>10% (Professional)</option>
@@ -289,7 +236,6 @@ export default function InvoiceGenerator() {
             </div>
           )}
         </div>
-
         <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2"><span>Total:</span><span className="text-blue-600">{totals.currency}{totals.total.toFixed(2)}</span></div>
         {totals.tds > 0 && (
           <div className="flex justify-between text-lg font-bold text-green-600 mt-1">
@@ -297,41 +243,12 @@ export default function InvoiceGenerator() {
             <span>{totals.currency}{totals.amountPayable.toFixed(2)}</span>
           </div>
         )}
-        
-        {!isExport && formData.businessState && formData.clientState && (
-          <p className="text-xs text-gray-500 mt-2 text-right">
-            {isInterState ? 'Inter-State Supply (IGST Applied)' : 'Intra-State Supply (CGST + SGST Applied)'}
-          </p>
-        )}
-        {isExport && (
-          <p className="text-xs text-blue-500 mt-2 text-right font-medium">
-            Export Supply under LUT (No Tax Applied)
-          </p>
-        )}
       </div>
 
-      {/* NEW: Cloud Save and Download Buttons */}
+      {/* Action Buttons */}
       <div className="flex flex-col md:flex-row gap-4 mt-6">
-        {user ? (
-          <button 
-            onClick={handleSaveToCloud} 
-            disabled={saveStatus === 'saving' || !formData.businessName || !formData.clientName || items.some(i => !i.description)} 
-            className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg"
-          >
-            {saveStatus === 'saving' ? 'Saving...' : (saveStatus === 'success' ? 'Saved to Cloud! ☁️' : 'Save to Cloud')}
-          </button>
-        ) : (
-          <a href="/auth" className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 text-center">
-            Login to Save Invoices ☁️
-          </a>
-        )}
-
-        <button 
-          onClick={handleDownload} 
-          disabled={!formData.businessName || !formData.clientName || items.some(i => !i.description)} 
-          className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg"
-        >
-          Download Free Invoice PDF
+        <button onClick={handleDownload} disabled={!formData.businessName || !formData.clientName || items.some(i => !i.description)} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg">
+          Download PDF
         </button>
       </div>
     </div>
