@@ -24,9 +24,9 @@ export default function Sidebar() {
   };
 
   const navItems = [
-    { name: 'Invoice Generator', href: '/', icon: FileText },
-    { name: 'Cash Flow', href: '/cashflow', icon: TrendingUp },
-    { name: 'My Invoices', href: '/invoices', icon: Archive },
+    { name: 'Invoice Generator', href: '/dashboard', icon: FileText },
+    { name: 'Cash Flow', href: '/dashboard/cashflow', icon: TrendingUp },
+    { name: 'My Invoices', href: '/dashboard/invoices', icon: Archive },
   ];
 
   if (loading) return null;
