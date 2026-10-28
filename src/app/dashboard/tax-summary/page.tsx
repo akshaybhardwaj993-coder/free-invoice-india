@@ -4,13 +4,7 @@ import { supabase } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Receipt, TrendingUp, Percent, FileText, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
+import autoTable from 'jspdf-autotable';
 
 export default function TaxSummary() {
   const [user, setUser] = useState<any>(null);
@@ -75,7 +69,7 @@ export default function TaxSummary() {
     doc.text(`Total TDS Deducted: Rs. ${totals.tds.toFixed(2)}`, 14, 59);
     doc.text(`Total Billed: Rs. ${totals.total.toFixed(2)}`, 14, 66);
 
-    // Table
+    // Table Data
     const tableColumn = ['Date', 'Invoice #', 'Client', 'Taxable Value', 'GST', 'TDS', 'Total'];
     const tableRows = monthlyInvoices.map(inv => {
       const d = inv.invoice_data;
@@ -91,7 +85,8 @@ export default function TaxSummary() {
       ];
     });
 
-    doc.autoTable({
+    // Use the standalone autoTable function
+    autoTable(doc, {
       startY: 75,
       head: [tableColumn],
       body: tableRows,
@@ -162,7 +157,7 @@ export default function TaxSummary() {
                 <Percent className="w-5 h-5 text-purple-600" />
                 <p className="text-sm text-gray-500 font-medium">Total GST Collected</p>
               </div>
-              <p className="text-2xl font-bold text-purple-600">{totalGST.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-purple-600">₹{totalGST.toFixed(2)}</p>
               <p className="text-xs text-gray-400 mt-1">CGST: ₹{totals.cgst.toFixed(2)} | SGST: ₹{totals.sgst.toFixed(2)} | IGST: ₹{totals.igst.toFixed(2)}</p>
             </div>
 
