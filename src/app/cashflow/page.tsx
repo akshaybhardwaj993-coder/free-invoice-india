@@ -100,7 +100,7 @@ export default function CashFlow() {
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500 mb-1">Total In</p>
-          <p className="text-2xl font-bold text-green-600">₹{totalIn.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-green-600">{totalIn.toFixed(2)}</p>
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500 mb-1">Total Out</p>
@@ -121,7 +121,10 @@ export default function CashFlow() {
               <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <XAxis dataKey="name" tick={{ fill: '#6b7280' }} />
                 <YAxis tick={{ fill: '#6b7280' }} />
-                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }} formatter={(value: number) => [`₹${value.toFixed(2)}`, 'Amount']} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                  formatter={(value: any) => [`₹${Number(value).toFixed(2)}`, 'Amount']}
+                />
                 <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={60}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
