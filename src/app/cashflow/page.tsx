@@ -31,7 +31,6 @@ export default function CashFlow() {
 
     if (user) {
       supabase.from('cashflow').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
-        if (error) console.error("Fetch error:", error);
         if (data) setTransactions(data);
       });
     } else {
@@ -44,12 +43,6 @@ export default function CashFlow() {
     }
   }, [user, authLoading]);
 
-  useEffect(() => {
-    if (!user && !authLoading) {
-      localStorage.setItem('cashflow_data', JSON.stringify({ openingBalance, transactions }));
-    }
-  }, [openingBalance, transactions, user, authLoading]);
-
   const addTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!desc || !amount) return;
@@ -59,11 +52,7 @@ export default function CashFlow() {
 
     const newTx = {
       id: user ? crypto.randomUUID() : Date.now(),
-      type,
-      description: desc,
-      amount: amountNum,
-      transaction_date: dateStr,
-      date: dateStr
+      type, description: desc, amount: amountNum, transaction_date: dateStr, date: dateStr
     };
     
     setTransactions([newTx, ...transactions]);
@@ -71,46 +60,39 @@ export default function CashFlow() {
     setAmount('');
 
     if (user) {
-      const { error } = await supabase.from('cashflow').insert([{
+      await supabase.from('cashflow').insert([{
         type, description: desc, amount: amountNum, transaction_date: dateStr, user_id: user.id
       }]);
-      if (error) console.error("Database save failed:", error);
     }
   };
 
   const deleteTransaction = async (id: string) => {
     setTransactions(transactions.filter(t => t.id !== id));
-    if (user) {
-      await supabase.from('cashflow').delete().eq('id', id);
-    }
+    if (user) await supabase.from('cashflow').delete().eq('id', id);
   };
 
   const totalIn = transactions.filter(t => t.type === 'in').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
   const totalOut = transactions.filter(t => t.type === 'out').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
   const closingBalance = openingBalance + totalIn - totalOut;
 
-  // Chart Data Preparation
   const chartData = [
-    { name: 'Income', value: totalIn, fill: '#16a34a' }, // Green
-    { name: 'Expense', value: totalOut, fill: '#dc2626' }, // Red
+    { name: 'Income', value: totalIn, fill: '#16a34a' },
+    { name: 'Expense', value: totalOut, fill: '#dc2626' },
   ];
 
-  if (authLoading) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading your data...</div>;
-  }
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading...</div>;
 
   return (
     <div className="max-w-4xl mx-auto p-6 md:p-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Daily Cash Flow Tracker</h1>
         {user ? (
-          <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">☁️ Cloud Synced</span>
+          <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">☁️ Cloud Synced</span>
         ) : (
-          <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">💾 Saved Locally</span>
+          <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">💾 Saved Locally</span>
         )}
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500 mb-1">Opening Balance</p>
@@ -130,7 +112,7 @@ export default function CashFlow() {
         </div>
       </div>
 
-      {/* NEW: Visual Chart */}
+      {/* THE CHART SECTION */}
       {(totalIn > 0 || totalOut > 0) && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
           <h3 className="text-lg font-semibold mb-4 text-gray-800">Financial Overview</h3>
@@ -139,10 +121,7 @@ export default function CashFlow() {
               <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <XAxis dataKey="name" tick={{ fill: '#6b7280' }} />
                 <YAxis tick={{ fill: '#6b7280' }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                  formatter={(value: number) => [`₹${value.toFixed(2)}`, 'Amount']}
-                />
+                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }} formatter={(value: number) => [`₹${value.toFixed(2)}`, 'Amount']} />
                 <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={60}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -154,7 +133,6 @@ export default function CashFlow() {
         </div>
       )}
 
-      {/* Add Transaction Form */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
         <h2 className="text-lg font-semibold mb-4">Add Transaction</h2>
         <form onSubmit={addTransaction} className="flex flex-col md:flex-row gap-4">
@@ -162,17 +140,16 @@ export default function CashFlow() {
             <option value="in">Cash In (+)</option>
             <option value="out">Cash Out (-)</option>
           </select>
-          <input type="text" placeholder="Description (e.g., Client Payment)" value={desc} onChange={(e) => setDesc(e.target.value)} className="flex-grow px-4 py-2 border border-gray-300 rounded-lg" required />
+          <input type="text" placeholder="Description" value={desc} onChange={(e) => setDesc(e.target.value)} className="flex-grow px-4 py-2 border border-gray-300 rounded-lg" required />
           <input type="number" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full md:w-32 px-4 py-2 border border-gray-300 rounded-lg" required />
           <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">Add</button>
         </form>
       </div>
 
-      {/* Transaction List */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-4 border-b border-gray-100 font-semibold text-gray-700">Recent Transactions</div>
         {transactions.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No transactions yet. Add one above!</div>
+          <div className="p-8 text-center text-gray-500">No transactions yet.</div>
         ) : (
           <div className="divide-y divide-gray-100">
             {transactions.map((t) => (
