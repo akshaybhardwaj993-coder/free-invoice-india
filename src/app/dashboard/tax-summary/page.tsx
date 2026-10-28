@@ -8,10 +8,13 @@ export default function TaxSummary() {
   const [user, setUser] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7)); // Current Month (YYYY-MM)
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
   const router = useRouter();
 
   useEffect(() => {
+    // Set default month to current month (only runs on client)
+    setSelectedMonth(new Date().toISOString().slice(0, 7));
+
     const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/auth'); return; }
