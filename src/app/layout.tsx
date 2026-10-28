@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         
         <footer className="mt-auto py-8 text-center text-sm text-gray-500 border-t border-gray-200 bg-white">
           <p className="mb-2">
-            © {new Date().getFullYear()} Free Invoice India. All rights reserved.
+               © 2026 Free Invoice India. All rights reserved.
           </p>
           <div className="flex justify-center gap-4 mb-2">
             <a href="/privacy" className="hover:text-blue-600 transition-colors">Privacy Policy</a>
