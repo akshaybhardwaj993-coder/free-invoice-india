@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { downloadPDF, InvoiceData } from '@/lib/pdf-generator';
+import { supabase } from '@/utils/supabase/client';
 
 const stateCodes: Record<string, string> = {
   '01': 'Jammu & Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh',
@@ -14,6 +15,9 @@ const stateCodes: Record<string, string> = {
 };
 
 export default function InvoiceGenerator() {
+  const [user, setUser] = useState<any>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+
   const [formData, setFormData] = useState({
     businessName: '',
     businessAddress: '',
@@ -31,6 +35,9 @@ export default function InvoiceGenerator() {
   const [isExport, setIsExport] = useState(false);
 
   useEffect(() => {
+    // Check auth status
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+
     const savedBusiness = localStorage.getItem('invoice_business_details');
     if (savedBusiness) {
       const parsed = JSON.parse(savedBusiness);
@@ -120,6 +127,47 @@ export default function InvoiceGenerator() {
     const currency = isExport ? '$' : '₹';
 
     return { subtotal, cgst, sgst, igst, tds, amountPayable, total, currency };
+  };
+
+  const handleSaveToCloud = async () => {
+    if (!user) {
+      alert("Please log in to save invoices to the cloud.");
+      return;
+    }
+    if (!formData.businessName || !formData.clientName || items.some(i => !i.description)) {
+      alert("Please fill in all required fields (Business Name, Client Name, and at least one Item Description) before saving.");
+      return;
+    }
+
+    setSaveStatus('saving');
+    const totals = calculateTotals();
+    
+    const invoicePayload = {
+      user_id: user.id,
+      invoice_number: formData.invoiceNumber,
+      invoice_date: formData.invoiceDate,
+      business_name: formData.businessName,
+      client_name: formData.clientName,
+      total_amount: totals.total,
+      invoice_data: {
+        ...formData,
+        items,
+        ...totals,
+        tdsRate,
+        isExport
+      }
+    };
+
+    const { error } = await supabase.from('invoices').insert([invoicePayload]);
+
+    if (error) {
+      console.error("Save error:", error);
+      setSaveStatus('error');
+      alert("Failed to save invoice: " + error.message);
+    } else {
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
   };
 
   const handleDownload = () => {
@@ -262,9 +310,30 @@ export default function InvoiceGenerator() {
         )}
       </div>
 
-      <button onClick={handleDownload} disabled={!formData.businessName || !formData.clientName || items.some(i => !i.description)} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg">
-        Download Free Invoice PDF
-      </button>
+      {/* NEW: Cloud Save and Download Buttons */}
+      <div className="flex flex-col md:flex-row gap-4 mt-6">
+        {user ? (
+          <button 
+            onClick={handleSaveToCloud} 
+            disabled={saveStatus === 'saving' || !formData.businessName || !formData.clientName || items.some(i => !i.description)} 
+            className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg"
+          >
+            {saveStatus === 'saving' ? 'Saving...' : (saveStatus === 'success' ? 'Saved to Cloud! ☁️' : 'Save to Cloud')}
+          </button>
+        ) : (
+          <a href="/auth" className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 text-center">
+            Login to Save Invoices ☁️
+          </a>
+        )}
+
+        <button 
+          onClick={handleDownload} 
+          disabled={!formData.businessName || !formData.clientName || items.some(i => !i.description)} 
+          className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg"
+        >
+          Download Free Invoice PDF
+        </button>
+      </div>
     </div>
   );
 }

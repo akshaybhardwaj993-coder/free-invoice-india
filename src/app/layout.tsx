@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import Navbar from '@/components/Navbar';
 
 export const metadata: Metadata = {
   title: 'Free GST Invoice Generator India | No Signup Required',
@@ -18,15 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="bg-gray-50 flex flex-col min-h-screen font-sans antialiased">
-        <nav className="bg-white border-b border-gray-200 py-4 shadow-sm">
-          <div className="max-w-4xl mx-auto px-6 flex justify-between items-center">
-            <a href="/" className="text-xl font-bold text-blue-600">Free Invoice India</a>
-            <div className="flex gap-4">
-              <a href="/" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Invoice Generator</a>
-              <a href="/cashflow" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Cash Flow</a>
-            </div>
-          </div>
-        </nav>
+        <Navbar />
         <main className="flex-grow">
           {children}
         </main>
