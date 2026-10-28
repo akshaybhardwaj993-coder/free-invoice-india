@@ -37,7 +37,7 @@ export default function Sidebar() {
       <div className="p-6 border-b border-gray-100">
         <h1 className="text-xl font-bold text-blue-600 flex items-center gap-2">
           <FileText className="w-6 h-6" />
-          Free Invoice India
+          ZapBill
         </h1>
       </div>
 

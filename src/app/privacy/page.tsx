@@ -12,7 +12,7 @@ export default function PrivacyPolicy() {
         <div>
           <h2 className="text-xl font-semibold mb-3 text-gray-900">1. Zero Data Collection</h2>
           <p>
-            Free Invoice India is designed with privacy as its core feature. <strong>We do not collect, store, or transmit any of your business or client data to our servers.</strong> 
+            ZapBill is designed with privacy as its core feature. <strong>We do not collect, store, or transmit any of your business or client data to our servers.</strong> 
           </p>
           <p className="mt-2">
             All invoice generation, tax calculations (CGST, SGST, IGST, TDS), and PDF creation happen entirely within your web browser using client-side JavaScript.
