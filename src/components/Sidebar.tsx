@@ -33,12 +33,12 @@ export default function Sidebar() {
   if (loading) return null;
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0 hidden md:flex">
+    <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-screen fixed left-0 top-0 hidden md:flex">
       {/* Logo */}
-      <div className="p-6 border-b border-gray-100">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-700">
         <h1 className="text-xl font-bold text-blue-600 flex items-center gap-2">
           <FileText className="w-6 h-6" />
-          ZapBill
+          <span className="text-gray-900 dark:text-white">ZapBill</span>
         </h1>
       </div>
 
@@ -53,11 +53,11 @@ export default function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
                 isActive 
-                  ? 'bg-blue-50 text-blue-700' 
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' 
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+              <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`} />
               {item.name}
             </a>
           );
@@ -65,16 +65,16 @@ export default function Sidebar() {
       </nav>
 
       {/* User Profile / Logout */}
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-gray-100 dark:border-gray-700">
         {user ? (
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs">
                 {user.email?.charAt(0).toUpperCase()}
               </div>
               <div className="text-xs">
-                <p className="font-medium text-gray-900 truncate w-32">{user.email}</p>
-                <p className="text-gray-500">Pro Plan</p>
+                <p className="font-medium text-gray-900 dark:text-white truncate w-32">{user.email}</p>
+                <p className="text-gray-500 dark:text-gray-400">Pro Plan</p>
               </div>
             </div>
             <button onClick={handleLogout} className="text-gray-400 hover:text-red-500 transition-colors">

@@ -1,7 +1,25 @@
+'use client';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FileText, TrendingUp, Cloud, Shield, Zap, CheckCircle } from 'lucide-react';
+import { supabase } from '@/utils/supabase/client';
+import { FileText, TrendingUp, Cloud, Shield, Zap, CheckCircle, Sun, Moon } from 'lucide-react';
 
 export default function Home() {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}
@@ -13,8 +31,21 @@ export default function Home() {
               <span className="text-xl font-bold text-gray-900">ZapBill</span>
             </div>
             <div className="flex items-center gap-4">
-              <Link href="/auth" className="text-gray-600 hover:text-gray-900 font-medium">Login</Link>
-              <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">Get Started Free</Link>
+              {loading ? (
+                <div className="w-20 h-8 bg-gray-200 rounded animate-pulse" />
+              ) : user ? (
+                <>
+                  <span className="text-sm text-gray-600 hidden sm:block">Hi, {user.email?.split('@')[0]}! 👋</span>
+                  <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                    Go to Dashboard
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/auth" className="text-gray-600 hover:text-gray-900 font-medium">Login</Link>
+                  <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">Get Started Free</Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -35,7 +66,7 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-blue-200">
-              Start Billing Now &rarr;
+              {user ? 'Go to Dashboard &rarr;' : 'Start Billing Now &rarr;'}
             </Link>
             <Link href="#features" className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-8 py-4 rounded-xl font-bold text-lg transition-colors">
               See Features
@@ -102,7 +133,7 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to streamline your finances?</h2>
           <p className="text-xl text-blue-100 mb-10">Join thousands of Indian freelancers using ZapBill to get paid faster.</p>
           <Link href="/dashboard" className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg inline-block">
-            Get Started Free &rarr;
+            {user ? 'Go to Dashboard &rarr;' : 'Get Started Free &rarr;'}
           </Link>
         </div>
       </section>
