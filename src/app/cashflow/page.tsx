@@ -30,10 +30,16 @@ export default function CashFlow() {
     if (authLoading) return;
 
     if (user) {
-      supabase.from('cashflow').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
+      // FIX: Load Opening Balance specifically for this logged-in user
+      const savedBalance = localStorage.getItem('opening_balance_' + user.id);
+      if (savedBalance) setOpeningBalance(parseFloat(savedBalance));
+
+      // Load Transactions from Cloud
+      supabase.from('cashflow').select('*').order('created_at', { ascending: false }).then(({ data }) => {
         if (data) setTransactions(data);
       });
     } else {
+      // Load from general Local Storage if logged out
       const saved = localStorage.getItem('cashflow_data');
       if (saved) {
         const data = JSON.parse(saved);
@@ -42,6 +48,17 @@ export default function CashFlow() {
       }
     }
   }, [user, authLoading]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    
+    if (user) {
+      // FIX: Save Opening Balance specifically for this logged-in user
+      localStorage.setItem('opening_balance_' + user.id, openingBalance.toString());
+    } else {
+      localStorage.setItem('cashflow_data', JSON.stringify({ openingBalance, transactions }));
+    }
+  }, [openingBalance, transactions, user, authLoading]);
 
   const addTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +117,7 @@ export default function CashFlow() {
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500 mb-1">Total In</p>
-          <p className="text-2xl font-bold text-green-600">{totalIn.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-green-600">₹{totalIn.toFixed(2)}</p>
         </div>
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
           <p className="text-sm text-gray-500 mb-1">Total Out</p>
@@ -112,7 +129,6 @@ export default function CashFlow() {
         </div>
       </div>
 
-      {/* THE CHART SECTION */}
       {(totalIn > 0 || totalOut > 0) && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
           <h3 className="text-lg font-semibold mb-4 text-gray-800">Financial Overview</h3>
