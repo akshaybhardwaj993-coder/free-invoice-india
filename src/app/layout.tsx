@@ -18,13 +18,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="bg-gray-50 flex flex-col min-h-screen font-sans antialiased">
+        <nav className="bg-white border-b border-gray-200 py-4 shadow-sm">
+          <div className="max-w-4xl mx-auto px-6 flex justify-between items-center">
+            <a href="/" className="text-xl font-bold text-blue-600">Free Invoice India</a>
+            <div className="flex gap-4">
+              <a href="/" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Invoice Generator</a>
+              <a href="/cashflow" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">Cash Flow</a>
+            </div>
+          </div>
+        </nav>
         <main className="flex-grow">
           {children}
         </main>
-        
         <footer className="mt-auto py-8 text-center text-sm text-gray-500 border-t border-gray-200 bg-white">
           <p className="mb-2">
-               © 2026 Free Invoice India. All rights reserved.
+            © 2026 Free Invoice India. All rights reserved.
           </p>
           <div className="flex justify-center gap-4 mb-2">
             <a href="/privacy" className="hover:text-blue-600 transition-colors">Privacy Policy</a>
