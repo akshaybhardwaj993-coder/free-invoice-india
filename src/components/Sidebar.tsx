@@ -1,13 +1,12 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase/client';
-import { useRouter, usePathname } from 'next/navigation';
-import { FileText, TrendingUp, Archive, LogOut, Receipt } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { FileText, TrendingUp, Archive, Receipt } from 'lucide-react';
 
 export default function Sidebar() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -16,12 +15,6 @@ export default function Sidebar() {
       setLoading(false);
     });
   }, []);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-    window.location.reload();
-  };
 
   const navItems = [
     { name: 'Invoice Generator', href: '/dashboard', icon: FileText },
@@ -62,31 +55,18 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* User Profile & BIG Logout Button */}
+      {/* User Profile Only (No Logout here anymore) */}
       <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-        {user ? (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3 px-2">
-              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-lg">
-                {user.email?.charAt(0).toUpperCase()}
-              </div>
-              <div className="text-xs overflow-hidden">
-                <p className="font-bold text-gray-900 dark:text-white truncate">{user.email}</p>
-                <p className="text-gray-500 dark:text-gray-400">Pro Plan</p>
-              </div>
+        {user && (
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-lg">
+              {user.email?.charAt(0).toUpperCase()}
             </div>
-            <button 
-              onClick={handleLogout} 
-              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-bold text-white bg-red-500 hover:bg-red-600 transition-colors shadow-sm"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </button>
+            <div className="text-xs overflow-hidden">
+              <p className="font-bold text-gray-900 dark:text-white truncate">{user.email}</p>
+              <p className="text-gray-500 dark:text-gray-400">Pro Plan</p>
+            </div>
           </div>
-        ) : (
-          <a href="/auth" className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 rounded-lg transition-colors">
-            Login / Sign Up
-          </a>
         )}
       </div>
     </aside>
