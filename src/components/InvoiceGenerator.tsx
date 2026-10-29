@@ -22,22 +22,26 @@ export default function InvoiceGenerator() {
   const [brandColor, setBrandColor] = useState('#2563eb');
   const [businessLogo, setBusinessLogo] = useState<string>('');
 
-  // 1. Use a safe, predictable placeholder for the initial server render
+  // 1. Use safe, predictable placeholders for server render
   const [formData, setFormData] = useState({
     businessName: '', businessAddress: '', businessGSTIN: '', businessState: '',
     clientName: '', clientAddress: '', clientGSTIN: '', clientState: 'Maharashtra',
     invoiceNumber: 'INV-000000', 
-    invoiceDate: new Date().toISOString().split('T')[0],
+    invoiceDate: 'YYYY-MM-DD', // Placeholder
   });
 
   const [tdsRate, setTdsRate] = useState<number>(0);
   const [isExport, setIsExport] = useState(false);
 
   useEffect(() => {
-    // 2. Generate the random number ONLY on the client side after mount
+    // 2. Generate random number and date ONLY on client side
+    const today = new Date().toISOString().split('T')[0];
+    const randomInv = `INV-${Math.floor(100000 + Math.random() * 900000)}`;
+    
     setFormData(prev => ({
       ...prev,
-      invoiceNumber: `INV-${Math.floor(100000 + Math.random() * 900000)}`
+      invoiceNumber: randomInv,
+      invoiceDate: today
     }));
 
     supabase.auth.getUser().then(({ data: { user } }) => {
