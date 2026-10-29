@@ -46,8 +46,8 @@ export default function AiAssistant() {
         botResponse = `✅ Done! Added ${command.type === 'expense' ? 'Expense' : 'Income'} of ₹${command.amount} for ${command.client}.`;
       } else if (command.type === 'invoice') {
         const invNum = `INV-${Math.floor(100000 + Math.random() * 900000)}`;
-        // Ensure amount is a number
-        const numAmount = parseFloat(command.amount) || 0;
+        // FIXED: Removed parseFloat since command.amount is already a number
+        const numAmount = command.amount; 
         
         const { error } = await supabase.from('invoices').insert([{
           user_id: user.id,
