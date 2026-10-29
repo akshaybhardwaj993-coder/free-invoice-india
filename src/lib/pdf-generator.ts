@@ -59,25 +59,6 @@ const hexToRgb = (hex: string) => {
   return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [0, 0, 0];
 };
 
-// Helper: Draw a box with label-value pairs
-const drawBox = (doc: jsPDF, x: number, y: number, w: number, h: number, rows: { label: string; value: string }[]) => {
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.3);
-  doc.rect(x, y, w, h);
-  
-  const rowHeight = h / rows.length;
-  rows.forEach((row, i) => {
-    const rowY = y + (i * rowHeight) + 4;
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'bold');
-    doc.text(row.label, x + 2, rowY);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    const valueText = row.value || '-';
-    doc.text(valueText, x + w / 2, rowY);
-  });
-};
-
 // --- MODERN TEMPLATE ---
 export const downloadPDF = (data: InvoiceData) => {
   if (data.templateStyle === 'traditional') {
@@ -261,7 +242,7 @@ export const downloadPDF = (data: InvoiceData) => {
   doc.save(`Tax_Invoice_${data.invoiceNumber}.pdf`);
 };
 
-// --- TRADITIONAL TEMPLATE (Matches Bhardwaj Motor Co. format) ---
+// --- TRADITIONAL TEMPLATE (Matches Bhardwaj Motor Co. format exactly) ---
 export const downloadTraditionalPDF = (data: InvoiceData) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   const [r, g, b] = hexToRgb(data.brandColor || '#000000');
@@ -430,7 +411,6 @@ export const downloadTraditionalPDF = (data: InvoiceData) => {
     },
     styles: { lineColor: [0, 0, 0] },
     didParseCell: function(data: any) {
-      // Bold the total row
       if (data.row.index === tableRows.length - 1) {
         data.cell.styles.fontStyle = 'bold';
         data.cell.styles.fillColor = [240, 240, 240];
