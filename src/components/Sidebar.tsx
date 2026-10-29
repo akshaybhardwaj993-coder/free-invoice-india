@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase/client';
 import { usePathname } from 'next/navigation';
-import { FileText, TrendingUp, Archive, Receipt } from 'lucide-react';
+import { FileText, TrendingUp, Archive, Receipt, Users } from 'lucide-react';
 
 export default function Sidebar() {
   const [user, setUser] = useState<any>(null);
@@ -21,6 +21,7 @@ export default function Sidebar() {
     { name: 'Cash Flow', href: '/dashboard/cashflow', icon: TrendingUp },
     { name: 'My Invoices', href: '/dashboard/invoices', icon: Archive },
     { name: 'Tax Summary', href: '/dashboard/tax-summary', icon: Receipt },
+    { name: 'Clients', href: '/dashboard/clients', icon: Users },
   ];
 
   if (loading) return null;

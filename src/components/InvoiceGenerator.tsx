@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { downloadPDF, InvoiceData } from '@/lib/pdf-generator';
 import { supabase } from '@/utils/supabase/client';
-import { Upload, Palette } from 'lucide-react';
+import { Upload, Palette, Users } from 'lucide-react';
 
 const stateCodes: Record<string, string> = {
   '01': 'Jammu & Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh',
@@ -17,9 +17,8 @@ const stateCodes: Record<string, string> = {
 
 export default function InvoiceGenerator() {
   const [user, setUser] = useState<any>(null);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [savedClients, setSavedClients] = useState<any[]>([]);
   
-  // Brand Settings State
   const [brandColor, setBrandColor] = useState('#2563eb');
   const [businessLogo, setBusinessLogo] = useState<string>('');
 
@@ -35,7 +34,13 @@ export default function InvoiceGenerator() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
     
-    // Load saved brand settings
+    // Load saved clients
+    if (user) {
+      supabase.from('clients').select('*').eq('user_id', user.id).order('name').then(({ data }) => {
+        if (data) setSavedClients(data);
+      });
+    }
+
     const savedBrand = localStorage.getItem('zapbill_brand_settings');
     if (savedBrand) {
       const parsed = JSON.parse(savedBrand);
@@ -49,9 +54,8 @@ export default function InvoiceGenerator() {
       setFormData(prev => ({ ...prev, businessName: parsed.businessName || '', businessAddress: parsed.businessAddress || '', businessGSTIN: parsed.businessGSTIN || '' }));
     }
     setFormData(prev => ({ ...prev, invoiceNumber: `INV-${Math.floor(100000 + Math.random() * 900000)}`, invoiceDate: new Date().toISOString().split('T')[0] }));
-  }, []);
+  }, [user]);
 
-  // Save brand settings whenever they change
   useEffect(() => {
     localStorage.setItem('zapbill_brand_settings', JSON.stringify({ brandColor, businessLogo }));
   }, [brandColor, businessLogo]);
@@ -102,10 +106,22 @@ export default function InvoiceGenerator() {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setBusinessLogo(reader.result as string);
-      };
+      reader.onloadend = () => setBusinessLogo(reader.result as string);
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleClientSelect = (clientId: string) => {
+    if (!clientId) return;
+    const client = savedClients.find(c => c.id === clientId);
+    if (client) {
+      setFormData(prev => ({
+        ...prev,
+        clientName: client.name,
+        clientGSTIN: client.gstin || '',
+        clientAddress: client.address || '',
+        clientState: client.state || prev.clientState
+      }));
     }
   };
 
@@ -120,7 +136,6 @@ export default function InvoiceGenerator() {
   return (
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-gray-100 max-w-4xl mx-auto">
       
-      {/* NEW: Brand Settings Section */}
       <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
         <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2"><Palette className="w-4 h-4" /> Brand Settings</h3>
         <div className="flex flex-wrap gap-6 items-center">
@@ -135,9 +150,7 @@ export default function InvoiceGenerator() {
               {businessLogo ? 'Change Logo' : 'Upload Logo'}
               <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
             </label>
-            {businessLogo && (
-              <button onClick={() => setBusinessLogo('')} className="text-xs text-red-500 hover:underline">Remove</button>
-            )}
+            {businessLogo && <button onClick={() => setBusinessLogo('')} className="text-xs text-red-500 hover:underline">Remove</button>}
           </div>
         </div>
       </div>
@@ -161,7 +174,31 @@ export default function InvoiceGenerator() {
       </div>
 
       <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-3 text-gray-800">Client Details</h3>
+        <h3 className="text-lg font-semibold mb-3 text-gray-800 flex items-center gap-2">
+          Client Details
+          {savedClients.length > 0 && (
+            <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex items-center gap-1">
+              <Users className="w-3 h-3" /> Saved: {savedClients.length}
+            </span>
+          )}
+        </h3>
+        
+        {/* NEW: Client Dropdown */}
+        {savedClients.length > 0 && (
+          <div className="mb-4">
+            <select 
+              onChange={(e) => handleClientSelect(e.target.value)} 
+              className="w-full px-4 py-2 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+              defaultValue=""
+            >
+              <option value="" disabled>⚡ Select a saved client to auto-fill...</option>
+              {savedClients.map(client => (
+                <option key={client.id} value={client.id}>{client.name} {client.gstin ? `(${client.gstin})` : ''}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input type="text" placeholder="Client Name *" value={formData.clientName} onChange={(e) => setFormData({...formData, clientName: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg" required />
           <input type="text" placeholder="Client GSTIN (Auto-detects State)" value={formData.clientGSTIN} onChange={(e) => setFormData({...formData, clientGSTIN: e.target.value.toUpperCase()})} className="px-4 py-2 border border-gray-300 rounded-lg" maxLength={15} />
@@ -245,10 +282,9 @@ export default function InvoiceGenerator() {
         )}
       </div>
 
-      {/* Action Buttons */}
       <div className="flex flex-col md:flex-row gap-4 mt-6">
         <button onClick={handleDownload} disabled={!formData.businessName || !formData.clientName || items.some(i => !i.description)} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg">
-          Download PDF
+          Download Tax Invoice PDF
         </button>
       </div>
     </div>
