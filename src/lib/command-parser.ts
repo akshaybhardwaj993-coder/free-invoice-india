@@ -8,27 +8,52 @@ export type CommandResult = {
 export function parseCommand(text: string): CommandResult {
   const lowerText = text.toLowerCase();
   
-  // Extract amount (looks for numbers like 500, 500.00, ₹500, $500)
-  const amountMatch = text.match(/(?:₹|\$|rs\.?\s?)?(\d+(?:\.\d+)?)/i);
-  const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+  // Extract amount (looks for numbers like 500, 500.00, ₹500, $500, 6000)
+  const amountMatch = text.match(/(?:₹|\$|rs\.?\s?|inr\s?)?(\d+(?:,\d+)*(?:\.\d+)?)/i);
+  const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
 
-  // Extract client name (usually after "to" or "from")
-  const clientMatch = text.match(/(?:to|from)\s+([A-Za-z0-9\s]+?)(?:\s+for|\s+on|$)/i);
-  const client = clientMatch ? clientMatch[1].trim() : 'Unknown Client';
+  // Extract client name - improved regex to handle parentheses and various formats
+  let client = 'Unknown Client';
+  
+  // Try to find client after "to", "from", "invoice", "billed"
+  const clientPatterns = [
+    /(?:to|from)\s+([a-zA-Z][a-zA-Z0-9\s]*?)(?:\s+\(|\s+for|\s+on|\s+of|\s+at|$)/i,
+    /(?:invoice|billed)\s+([a-zA-Z][a-zA-Z0-9\s]*?)(?:\s+\(|\s+for|\s+on|\s+of|\s+at|\s+\d|$)/i,
+    /(?:paid|sent|gave)\s+(?:|\$|rs\.?\s?|\d)*\s*(?:to\s+)?([a-zA-Z][a-zA-Z0-9\s]*?)(?:\s+for|\s+on|\s+of|\s+at|$)/i,
+  ];
+  
+  for (const pattern of clientPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      client = match[1].trim();
+      // Remove trailing words like "for", "on", "of"
+      client = client.replace(/\s+(for|on|of|at|the|a|an)\s*$/i, '').trim();
+      if (client.length > 1) break;
+    }
+  }
 
-  // Clean description
-  let description = text.replace(amountMatch?.[0] || '', '').trim();
-  description = description.replace(/^(paid|received|invoiced|billed|spent|got)\s+(to|from)?\s*/i, '').trim();
-  if (!description) description = client !== 'Unknown Client' ? `Payment ${client}` : 'Transaction';
+  // Clean description - remove command words and amount
+  let description = text;
+  description = description.replace(amountMatch?.[0] || '', '').trim();
+  description = description.replace(/^(invoice|invoiced|billed|paid|sent|received|got|expense|income)\s+(to|from)?\s*/i, '').trim();
+  description = description.replace(new RegExp(client, 'i'), '').trim();
+  description = description.replace(/\s+/g, ' ').trim();
+  
+  // Capitalize first letter
+  description = description.charAt(0).toUpperCase() + description.slice(1);
+  
+  if (!description || description.length < 3) {
+    description = client !== 'Unknown Client' ? `Payment to ${client}` : 'Transaction';
+  }
 
   // Determine Type
-  if (lowerText.includes('paid') || lowerText.includes('spent') || lowerText.includes('expense')) {
+  if (lowerText.includes('paid') || lowerText.includes('spent') || lowerText.includes('expense') || lowerText.includes('sent')) {
     return { type: 'expense', amount, description, client };
   }
   if (lowerText.includes('received') || lowerText.includes('got') || lowerText.includes('income') || lowerText.includes('salary')) {
     return { type: 'income', amount, description, client };
   }
-  if (lowerText.includes('invoiced') || lowerText.includes('billed') || lowerText.includes('invoice')) {
+  if (lowerText.includes('invoic') || lowerText.includes('billed') || lowerText.includes('bill')) {
     return { type: 'invoice', amount, description, client };
   }
 

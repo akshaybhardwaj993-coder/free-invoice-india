@@ -1,7 +1,28 @@
+'use client';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { supabase } from '@/utils/supabase/client';
 import { FileText, TrendingUp, Cloud, Zap, CheckCircle } from 'lucide-react';
 
 export default function Home() {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const userName = user?.email?.split('@')[0] || 'User';
+  const displayName = userName.charAt(0).toUpperCase() + userName.slice(1);
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}
@@ -13,8 +34,21 @@ export default function Home() {
               <span className="text-xl font-bold text-gray-900">ZapBill</span>
             </div>
             <div className="flex items-center gap-4">
-              <Link href="/auth" className="text-gray-600 hover:text-gray-900 font-medium">Login</Link>
-              <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">Get Started Free</Link>
+              {loading ? (
+                <div className="w-20 h-8 bg-gray-200 rounded animate-pulse" />
+              ) : user ? (
+                <>
+                  <span className="text-sm text-gray-600 hidden sm:block">Hi, {displayName}! 👋</span>
+                  <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                    Dashboard
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/auth" className="text-gray-600 hover:text-gray-900 font-medium">Login</Link>
+                  <Link href="/auth" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">Get Started Free</Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -33,14 +67,19 @@ export default function Home() {
           <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
             Generate GST-compliant invoices in seconds, track your daily cash flow with visual charts, and sync everything to the cloud. 100% free.
           </p>
+          
+          {/* TWO BUTTONS */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-blue-200">
-              Start Billing Now →
+            <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-blue-200 flex items-center justify-center gap-2">
+              <FileText className="w-5 h-5" />
+              Start Invoice →
             </Link>
-            <Link href="#features" className="bg-gray-100 hover:bg-gray-200 text-gray-900 px-8 py-4 rounded-xl font-bold text-lg transition-colors">
-              See Features
+            <Link href="/dashboard/cashflow" className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-green-200 flex items-center justify-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Track Cash Flow →
             </Link>
           </div>
+          
           <p className="mt-6 text-sm text-gray-500">No credit card required • Free forever</p>
         </div>
       </section>
@@ -101,9 +140,14 @@ export default function Home() {
         <div className="max-w-4xl mx-auto text-center text-white">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to streamline your finances?</h2>
           <p className="text-xl text-blue-100 mb-10">Join thousands of Indian freelancers using ZapBill to get paid faster.</p>
-          <Link href="/dashboard" className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg inline-block">
-            Get Started Free →
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/dashboard" className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg inline-flex items-center justify-center gap-2">
+              <FileText className="w-5 h-5" /> Start Invoice →
+            </Link>
+            <Link href="/dashboard/cashflow" className="bg-blue-700 text-white hover:bg-blue-800 px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg inline-flex items-center justify-center gap-2 border border-blue-500">
+              <TrendingUp className="w-5 h-5" /> Track Cash Flow →
+            </Link>
+          </div>
         </div>
       </section>
 
