@@ -15,9 +15,6 @@ const stateCodes: Record<string, string> = {
   '34': 'Puducherry', '35': 'Andaman & Nicobar', '36': 'Telangana', '37': 'Andhra Pradesh (New)'
 };
 
-// Helper to generate a random invoice number
-const generateInvoiceNumber = () => `INV-${Math.floor(100000 + Math.random() * 900000)}`;
-
 export default function InvoiceGenerator() {
   const [user, setUser] = useState<any>(null);
   const [savedClients, setSavedClients] = useState<any[]>([]);
@@ -25,11 +22,11 @@ export default function InvoiceGenerator() {
   const [brandColor, setBrandColor] = useState('#2563eb');
   const [businessLogo, setBusinessLogo] = useState<string>('');
 
-  // Initialize with random number and today's date ONCE
+  // 1. Use a safe, predictable placeholder for the initial server render
   const [formData, setFormData] = useState({
     businessName: '', businessAddress: '', businessGSTIN: '', businessState: '',
     clientName: '', clientAddress: '', clientGSTIN: '', clientState: 'Maharashtra',
-    invoiceNumber: generateInvoiceNumber(), 
+    invoiceNumber: 'INV-000000', 
     invoiceDate: new Date().toISOString().split('T')[0],
   });
 
@@ -37,9 +34,14 @@ export default function InvoiceGenerator() {
   const [isExport, setIsExport] = useState(false);
 
   useEffect(() => {
+    // 2. Generate the random number ONLY on the client side after mount
+    setFormData(prev => ({
+      ...prev,
+      invoiceNumber: `INV-${Math.floor(100000 + Math.random() * 900000)}`
+    }));
+
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
-      // Load saved clients ONLY when user is confirmed
       if (user) {
         supabase.from('clients').select('*').eq('user_id', user.id).order('name').then(({ data }) => {
           if (data) setSavedClients(data);
@@ -59,8 +61,7 @@ export default function InvoiceGenerator() {
       const parsed = JSON.parse(savedBusiness);
       setFormData(prev => ({ ...prev, businessName: parsed.businessName || '', businessAddress: parsed.businessAddress || '', businessGSTIN: parsed.businessGSTIN || '' }));
     }
-    // REMOVED: The code that was overwriting invoiceNumber and invoiceDate here!
-  }, []); // Empty array means this runs ONLY ONCE on mount
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('zapbill_brand_settings', JSON.stringify({ brandColor, businessLogo }));
@@ -104,7 +105,7 @@ export default function InvoiceGenerator() {
     const total = subtotal + totalTax;
     const tds = (subtotal * tdsRate) / 100;
     const amountPayable = total - tds;
-    const currency = isExport ? '$' : '';
+    const currency = isExport ? '$' : '₹';
     return { subtotal, cgst, sgst, igst, tds, amountPayable, total, currency };
   };
 
@@ -223,7 +224,7 @@ export default function InvoiceGenerator() {
           <div className="relative">
             <input type="text" placeholder="Invoice Number" value={formData.invoiceNumber} onChange={(e) => setFormData({...formData, invoiceNumber: e.target.value})} className="w-full px-4 py-2 border border-gray-300 rounded-lg pr-10" />
             <button 
-              onClick={() => setFormData({...formData, invoiceNumber: generateInvoiceNumber()})}
+              onClick={() => setFormData({...formData, invoiceNumber: `INV-${Math.floor(100000 + Math.random() * 900000)}`})}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 p-1"
               title="Generate new random number"
             >
