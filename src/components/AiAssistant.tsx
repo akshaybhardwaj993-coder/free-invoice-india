@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { MessageCircle, X, Send, Bot, User, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, Loader2 } from 'lucide-react';
 import { supabase } from '@/utils/supabase/client';
 import { parseCommand } from '@/lib/command-parser';
 
@@ -32,13 +32,13 @@ export default function AiAssistant() {
       if (command.type === 'unknown') {
         botResponse = "I didn't understand that. Try 'Paid [amount] to [name]' or 'Invoiced [name] [amount]'.";
       } else if (command.type === 'expense' || command.type === 'income') {
-        // Update Cashflow
+        // Update Cashflow - FIXED: changed 'date' to 'created_at'
         const { error } = await supabase.from('cashflow').insert([{
           user_id: user.id,
           type: command.type,
           amount: command.amount,
           description: `${command.description} (${command.client})`,
-          date: new Date().toISOString().split('T')[0]
+          created_at: new Date().toISOString() 
         }]);
 
         if (error) throw error;
