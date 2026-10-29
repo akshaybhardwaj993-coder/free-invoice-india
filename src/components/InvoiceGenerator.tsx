@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { downloadPDF, InvoiceData } from '@/lib/pdf-generator';
 import { supabase } from '@/utils/supabase/client';
-import { Upload, Palette, Users, RefreshCw } from 'lucide-react';
+import { Upload, Palette, Users, RefreshCw, LayoutGrid, FileText } from 'lucide-react';
 
 const stateCodes: Record<string, string> = {
   '01': 'Jammu & Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh',
@@ -21,28 +21,24 @@ export default function InvoiceGenerator() {
   
   const [brandColor, setBrandColor] = useState('#2563eb');
   const [businessLogo, setBusinessLogo] = useState<string>('');
+  const [templateStyle, setTemplateStyle] = useState<'modern' | 'traditional'>('modern');
 
-  // 1. Use safe, predictable placeholders for server render
   const [formData, setFormData] = useState({
     businessName: '', businessAddress: '', businessGSTIN: '', businessState: '',
     clientName: '', clientAddress: '', clientGSTIN: '', clientState: 'Maharashtra',
-    invoiceNumber: 'INV-000000', 
-    invoiceDate: 'YYYY-MM-DD', // Placeholder
+    invoiceNumber: 'INV-000000', invoiceDate: 'YYYY-MM-DD',
+    // Traditional Fields
+    deliveryNote: '', buyersOrderNo: '', despatchDocNo: '', termsOfDelivery: 'ON DISPATCH',
   });
 
   const [tdsRate, setTdsRate] = useState<number>(0);
   const [isExport, setIsExport] = useState(false);
 
   useEffect(() => {
-    // 2. Generate random number and date ONLY on client side
     const today = new Date().toISOString().split('T')[0];
     const randomInv = `INV-${Math.floor(100000 + Math.random() * 900000)}`;
     
-    setFormData(prev => ({
-      ...prev,
-      invoiceNumber: randomInv,
-      invoiceDate: today
-    }));
+    setFormData(prev => ({ ...prev, invoiceNumber: randomInv, invoiceDate: today }));
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
@@ -138,7 +134,7 @@ export default function InvoiceGenerator() {
 
   const handleDownload = () => {
     const totals = calculateTotals();
-    downloadPDF({ ...formData, items, ...totals, tdsRate, isExport, businessLogo, brandColor } as InvoiceData);
+    downloadPDF({ ...formData, items, ...totals, tdsRate, isExport, businessLogo, brandColor, templateStyle } as InvoiceData);
   };
 
   const totals = calculateTotals();
@@ -148,7 +144,7 @@ export default function InvoiceGenerator() {
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-gray-100 max-w-4xl mx-auto">
       
       <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2"><Palette className="w-4 h-4" /> Brand Settings</h3>
+        <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2"><Palette className="w-4 h-4" /> Brand & Template Settings</h3>
         <div className="flex flex-wrap gap-6 items-center">
           <div className="flex items-center gap-3">
             <label className="text-sm text-gray-600">Brand Color:</label>
@@ -162,6 +158,25 @@ export default function InvoiceGenerator() {
               <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
             </label>
             {businessLogo && <button onClick={() => setBusinessLogo('')} className="text-xs text-red-500 hover:underline">Remove</button>}
+          </div>
+          
+          {/* Template Toggle */}
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-sm text-gray-600">Template:</span>
+            <div className="flex bg-gray-200 rounded-lg p-1">
+              <button 
+                onClick={() => setTemplateStyle('modern')}
+                className={`px-3 py-1 rounded-md text-sm font-medium flex items-center gap-1 transition-all ${templateStyle === 'modern' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'}`}
+              >
+                <LayoutGrid className="w-3 h-3" /> Modern
+              </button>
+              <button 
+                onClick={() => setTemplateStyle('traditional')}
+                className={`px-3 py-1 rounded-md text-sm font-medium flex items-center gap-1 transition-all ${templateStyle === 'traditional' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'}`}
+              >
+                <FileText className="w-3 h-3" /> Traditional
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -221,6 +236,19 @@ export default function InvoiceGenerator() {
           )}
         </div>
       </div>
+
+      {/* Traditional Template Extra Fields */}
+      {templateStyle === 'traditional' && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <h3 className="text-sm font-bold text-yellow-800 mb-3">Traditional Invoice Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input type="text" placeholder="Delivery Note" value={formData.deliveryNote} onChange={(e) => setFormData({...formData, deliveryNote: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg text-sm" />
+            <input type="text" placeholder="Buyer's Order No." value={formData.buyersOrderNo} onChange={(e) => setFormData({...formData, buyersOrderNo: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg text-sm" />
+            <input type="text" placeholder="Despatch Doc No." value={formData.despatchDocNo} onChange={(e) => setFormData({...formData, despatchDocNo: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg text-sm" />
+            <input type="text" placeholder="Terms of Delivery" value={formData.termsOfDelivery} onChange={(e) => setFormData({...formData, termsOfDelivery: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+        </div>
+      )}
 
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-3 text-gray-800">Invoice Details</h3>
@@ -303,7 +331,7 @@ export default function InvoiceGenerator() {
 
       <div className="flex flex-col md:flex-row gap-4 mt-6">
         <button onClick={handleDownload} disabled={!formData.businessName || !formData.clientName || items.some(i => !i.description)} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg">
-          Download Tax Invoice PDF
+          Download {templateStyle === 'traditional' ? 'Traditional' : 'Modern'} Tax Invoice PDF
         </button>
       </div>
     </div>
