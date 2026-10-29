@@ -10,7 +10,19 @@ export default function MyInvoices() {
   const [loading, setLoading] = useState(true);
   const [viewInvoice, setViewInvoice] = useState<any>(null);
   const [editInvoice, setEditInvoice] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ clientName: '', invoiceDate: '', items: [] as any[] });
+  
+  // Expanded Edit Form State
+  const [editForm, setEditForm] = useState({
+    businessName: '',
+    businessGSTIN: '',
+    businessState: '',
+    clientName: '',
+    clientGSTIN: '',
+    clientState: '',
+    invoiceDate: '',
+    items: [] as any[]
+  });
+  
   const router = useRouter();
 
   useEffect(() => {
@@ -38,10 +50,16 @@ export default function MyInvoices() {
 
   const openEdit = (inv: any) => {
     setEditInvoice(inv);
+    const data = inv.invoice_data || {};
     setEditForm({
+      businessName: data.businessName || inv.business_name || 'My Business',
+      businessGSTIN: data.businessGSTIN || inv.business_gstin || '',
+      businessState: data.businessState || '',
       clientName: inv.client_name || '',
+      clientGSTIN: data.clientGSTIN || inv.client_gstin || '',
+      clientState: data.clientState || '',
       invoiceDate: inv.invoice_date || new Date().toISOString().split('T')[0],
-      items: inv.invoice_data?.items || [{ description: '', hsn: '', quantity: 1, rate: 0, amount: 0 }]
+      items: data.items || [{ description: '', hsn: '', quantity: 1, rate: 0, amount: 0 }]
     });
   };
 
@@ -66,14 +84,26 @@ export default function MyInvoices() {
 
   const saveEdit = async () => {
     const subtotal = editForm.items.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0);
-    const total = subtotal;
+    const total = subtotal; // Simplified for quick edit
     
+    const updatedData = {
+      ...editInvoice.invoice_data,
+      businessName: editForm.businessName,
+      businessGSTIN: editForm.businessGSTIN,
+      businessState: editForm.businessState,
+      clientGSTIN: editForm.clientGSTIN,
+      clientState: editForm.clientState,
+      items: editForm.items,
+      subtotal,
+      total
+    };
+
     const { error } = await supabase
       .from('invoices')
       .update({
         client_name: editForm.clientName,
         invoice_date: editForm.invoiceDate,
-        invoice_data: { ...editInvoice.invoice_data, items: editForm.items, subtotal, total }
+        invoice_data: updatedData
       })
       .eq('id', editInvoice.id);
 
@@ -84,7 +114,7 @@ export default function MyInvoices() {
 
     setInvoices(invoices.map(inv => 
       inv.id === editInvoice.id 
-        ? { ...inv, client_name: editForm.clientName, invoice_date: editForm.invoiceDate, invoice_data: { ...inv.invoice_data, items: editForm.items, subtotal, total } }
+        ? { ...inv, client_name: editForm.clientName, invoice_date: editForm.invoiceDate, invoice_data: updatedData }
         : inv
     ));
     setEditInvoice(null);
@@ -95,14 +125,14 @@ export default function MyInvoices() {
     const data = inv.invoice_data;
     if (!data) return;
     const pdfData: InvoiceData = {
-      businessName: 'My Business',
+      businessName: data.businessName || 'My Business',
       businessAddress: '',
-      businessGSTIN: '',
-      businessState: '',
+      businessGSTIN: data.businessGSTIN || '',
+      businessState: data.businessState || '',
       clientName: inv.client_name,
       clientAddress: '',
-      clientGSTIN: '',
-      clientState: '',
+      clientGSTIN: data.clientGSTIN || '',
+      clientState: data.clientState || '',
       invoiceNumber: inv.invoice_number,
       invoiceDate: inv.invoice_date,
       items: data.items || [],
@@ -148,7 +178,7 @@ export default function MyInvoices() {
                     <td className="px-6 py-4 text-sm text-gray-600">{inv.invoice_date}</td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{inv.client_name}</td>
                     <td className="px-6 py-4 text-sm text-gray-500">{inv.invoice_number}</td>
-                    <td className="px-6 py-4 text-sm text-right font-bold text-gray-900">₹{total.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-sm text-right font-bold text-gray-900">{total.toFixed(2)}</td>
                     <td className="px-6 py-4 text-right space-x-2">
                       <button onClick={() => setViewInvoice(inv)} className="text-blue-600 hover:text-blue-800 font-medium text-sm inline-flex items-center gap-1">
                         <Eye className="w-4 h-4" /> View
@@ -217,7 +247,7 @@ export default function MyInvoices() {
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* Edit Modal with GSTIN Fields */}
       {editInvoice && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
@@ -228,21 +258,46 @@ export default function MyInvoices() {
               </div>
               <button onClick={() => setEditInvoice(null)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-gray-500 uppercase font-semibold">Client Name</label>
-                  <input type="text" value={editForm.clientName} onChange={(e) => setEditForm({...editForm, clientName: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg" />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 uppercase font-semibold">Invoice Date</label>
-                  <input type="date" value={editForm.invoiceDate} onChange={(e) => setEditForm({...editForm, invoiceDate: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg" />
+            <div className="p-6 space-y-6">
+              
+              {/* Business Details */}
+              <div>
+                <h3 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1">Business Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase font-semibold">Business Name</label>
+                    <input type="text" value={editForm.businessName} onChange={(e) => setEditForm({...editForm, businessName: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase font-semibold">Business GSTIN</label>
+                    <input type="text" value={editForm.businessGSTIN} onChange={(e) => setEditForm({...editForm, businessGSTIN: e.target.value.toUpperCase()})} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm" maxLength={15} />
+                  </div>
                 </div>
               </div>
 
+              {/* Client Details */}
               <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-xs text-gray-500 uppercase font-semibold">Items</label>
+                <h3 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1">Client Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase font-semibold">Client Name</label>
+                    <input type="text" value={editForm.clientName} onChange={(e) => setEditForm({...editForm, clientName: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase font-semibold">Client GSTIN</label>
+                    <input type="text" value={editForm.clientGSTIN} onChange={(e) => setEditForm({...editForm, clientGSTIN: e.target.value.toUpperCase()})} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm" maxLength={15} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase font-semibold">Invoice Date</label>
+                    <input type="date" value={editForm.invoiceDate} onChange={(e) => setEditForm({...editForm, invoiceDate: e.target.value})} className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Items */}
+              <div>
+                <div className="flex justify-between items-center mb-2 border-b pb-1">
+                  <h3 className="text-sm font-bold text-gray-700">Items</h3>
                   <button onClick={addEditItem} className="text-sm text-blue-600 hover:text-blue-700 font-medium">+ Add Item</button>
                 </div>
                 <div className="space-y-2">
@@ -259,7 +314,7 @@ export default function MyInvoices() {
                 </div>
                 <div className="mt-3 text-right">
                   <span className="text-sm text-gray-600">Total: </span>
-                  <span className="font-bold text-blue-600">₹{editForm.items.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0).toFixed(2)}</span>
+                  <span className="font-bold text-blue-600">{editForm.items.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0).toFixed(2)}</span>
                 </div>
               </div>
             </div>
