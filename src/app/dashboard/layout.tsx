@@ -1,4 +1,5 @@
 'use client';
+import AiAssistant from '@/components/AiAssistant';
 import { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { Menu, X, FileText, Moon, Sun } from 'lucide-react';
@@ -63,6 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </main>
       </div>
+      <AiAssistant />
     </div>
   );
 }
