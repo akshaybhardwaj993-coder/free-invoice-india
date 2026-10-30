@@ -26,8 +26,7 @@ export default function InvoiceGenerator() {
   const [formData, setFormData] = useState({
     businessName: '', businessAddress: '', businessGSTIN: '', businessState: '',
     clientName: '', clientAddress: '', clientGSTIN: '', clientState: 'Maharashtra',
-    invoiceNumber: 'INV-000000', invoiceDate: 'YYYY-MM-DD',
-    // Traditional Fields
+    invoiceNumber: 'INV-000000', invoiceDate: '', // FIXED: Changed from 'YYYY-MM-DD' to ''
     deliveryNote: '', buyersOrderNo: '', despatchDocNo: '', termsOfDelivery: 'ON DISPATCH',
   });
 
@@ -134,6 +133,7 @@ export default function InvoiceGenerator() {
 
   const handleDownload = () => {
     const totals = calculateTotals();
+    console.log('Downloading with templateStyle:', templateStyle);
     downloadPDF({ ...formData, items, ...totals, tdsRate, isExport, businessLogo, brandColor, templateStyle } as InvoiceData);
   };
 
@@ -160,7 +160,6 @@ export default function InvoiceGenerator() {
             {businessLogo && <button onClick={() => setBusinessLogo('')} className="text-xs text-red-500 hover:underline">Remove</button>}
           </div>
           
-          {/* Template Toggle */}
           <div className="flex items-center gap-2 ml-auto">
             <span className="text-sm text-gray-600">Template:</span>
             <div className="flex bg-gray-200 rounded-lg p-1">
@@ -237,7 +236,6 @@ export default function InvoiceGenerator() {
         </div>
       </div>
 
-      {/* Traditional Template Extra Fields */}
       {templateStyle === 'traditional' && (
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <h3 className="text-sm font-bold text-yellow-800 mb-3">Traditional Invoice Details</h3>
@@ -263,7 +261,7 @@ export default function InvoiceGenerator() {
               <RefreshCw className="w-4 h-4" />
             </button>
           </div>
-          <input type="date" placeholder="Invoice Date" value={formData.invoiceDate} onChange={(e) => setFormData({...formData, invoiceDate: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg" />
+          <input type="date" value={formData.invoiceDate} onChange={(e) => setFormData({...formData, invoiceDate: e.target.value})} className="px-4 py-2 border border-gray-300 rounded-lg" />
         </div>
       </div>
 
