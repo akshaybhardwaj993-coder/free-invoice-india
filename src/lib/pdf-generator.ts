@@ -59,12 +59,16 @@ const hexToRgb = (hex: string) => {
   return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [0, 0, 0];
 };
 
-// --- MODERN TEMPLATE ---
+// MAIN ROUTER
 export const downloadPDF = (data: InvoiceData) => {
   if (data.templateStyle === 'traditional') {
-    return downloadTraditionalPDF(data);
+    return generateTraditionalInvoice(data);
   }
+  return generateModernInvoice(data);
+};
 
+// --- MODERN TEMPLATE ---
+const generateModernInvoice = (data: InvoiceData) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   const [r, g, b] = hexToRgb(data.brandColor || '#2563eb');
   const pageWidth = 210;
@@ -242,8 +246,8 @@ export const downloadPDF = (data: InvoiceData) => {
   doc.save(`Tax_Invoice_${data.invoiceNumber}.pdf`);
 };
 
-// --- TRADITIONAL TEMPLATE (Matches Bhardwaj Motor Co. format exactly) ---
-export const downloadTraditionalPDF = (data: InvoiceData) => {
+// --- TRADITIONAL TEMPLATE (Exact Bhardwaj Motor Co. format) ---
+const generateTraditionalInvoice = (data: InvoiceData) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   const [r, g, b] = hexToRgb(data.brandColor || '#000000');
   const margin = 8;
