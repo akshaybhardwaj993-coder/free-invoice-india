@@ -59,18 +59,15 @@ const hexToRgb = (hex: string) => {
   return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [0, 0, 0];
 };
 
-// MAIN EXPORT - This is the ONLY function called
+// MAIN EXPORT - WITH ALERT FOR DEBUGGING
 export const downloadPDF = (data: InvoiceData) => {
-  console.log('=== PDF GENERATOR CALLED ===');
-  console.log('Template Style:', data.templateStyle);
+  // THIS ALERT WILL PROVE IF THE NEW CODE IS RUNNING
+  alert('PDF GENERATOR RUNNING!\nTemplate Style: ' + (data.templateStyle || 'NOT SET'));
   
   if (data.templateStyle === 'traditional') {
-    console.log('Generating TRADITIONAL invoice');
     return createTraditionalPDF(data);
-  } else {
-    console.log('Generating MODERN invoice');
-    return createModernPDF(data);
   }
+  return createModernPDF(data);
 };
 
 // --- MODERN PDF ---
@@ -246,8 +243,6 @@ const createModernPDF = (data: InvoiceData) => {
 
 // --- TRADITIONAL PDF (Exact Bhardwaj Motor Co. format) ---
 const createTraditionalPDF = (data: InvoiceData) => {
-  console.log('Creating traditional PDF with data:', data);
-  
   const doc = new jsPDF('p', 'mm', 'a4');
   const [r, g, b] = hexToRgb(data.brandColor || '#000000');
   const margin = 8;
