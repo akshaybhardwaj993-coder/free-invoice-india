@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
 import { numberToWords } from './number-to-words';
 
 declare module 'jspdf' {
@@ -45,6 +46,7 @@ export interface InvoiceData {
   isExport: boolean;
   businessLogo?: string;
   brandColor?: string;
+  upiId?: string; // NEW
   placeOfSupply?: string;
   reverseCharge?: string;
   deliveryNote?: string;
@@ -59,24 +61,200 @@ const hexToRgb = (hex: string) => {
   return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [0, 0, 0];
 };
 
-export const downloadPDF = (data: InvoiceData) => {
-  // THIS ALERT PROVES THE NEW CODE IS RUNNING
-  alert('GENERATING ' + (data.templateStyle === 'traditional' ? 'TRADITIONAL' : 'MODERN') + ' INVOICE!');
-  
+export const downloadPDF = async (data: InvoiceData) => {
   if (data.templateStyle === 'traditional') {
     return createTraditionalPDF(data);
   }
   return createModernPDF(data);
 };
 
-const createModernPDF = (data: InvoiceData) => {
-  // (Modern PDF code remains here, omitted for brevity as we are focusing on Traditional)
+const createModernPDF = async (data: InvoiceData) => {
   const doc = new jsPDF('p', 'mm', 'a4');
-  doc.text('Modern Invoice', 10, 10);
-  doc.save(`Invoice_${data.invoiceNumber}.pdf`);
+  const [r, g, b] = hexToRgb(data.brandColor || '#2563eb');
+  const pageWidth = 210;
+  const margin = 15;
+  let yPos = 15;
+
+  doc.setDrawColor(r, g, b);
+  doc.setLineWidth(0.8);
+  doc.rect(5, 5, 200, 287);
+
+  doc.setFontSize(22);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(r, g, b);
+  doc.text('TAX INVOICE', pageWidth / 2, yPos + 5, { align: 'center' });
+  yPos += 12;
+
+  if (data.businessLogo) {
+    try { doc.addImage(data.businessLogo, 'PNG', margin, yPos, 25, 25); } catch (e) {}
+  }
+
+  const bizX = data.businessLogo ? margin + 30 : margin;
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0);
+  doc.text(data.businessName || 'Your Business Name', bizX, yPos + 5);
+  
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 80);
+  let infoY = yPos + 10;
+  if (data.businessAddress) { doc.text(data.businessAddress, bizX, infoY); infoY += 4; }
+  if (data.businessPhone) { doc.text(`Phone: ${data.businessPhone}`, bizX, infoY); infoY += 4; }
+  if (data.businessEmail) { doc.text(`Email: ${data.businessEmail}`, bizX, infoY); infoY += 4; }
+  if (data.businessGSTIN) { doc.text(`GSTIN: ${data.businessGSTIN}`, bizX, infoY); infoY += 4; }
+  if (data.businessState) { doc.text(`State: ${data.businessState}`, bizX, infoY); }
+
+  const boxX = pageWidth - margin - 70;
+  doc.setDrawColor(r, g, b);
+  doc.setFillColor(r, g, b);
+  doc.rect(boxX, yPos - 2, 70, 4, 'F');
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+  doc.text('INVOICE DETAILS', boxX + 35, yPos + 1, { align: 'center' });
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(8);
+  let detailY = yPos + 8;
+  doc.setFont('helvetica', 'bold'); doc.text('Invoice No:', boxX + 2, detailY);
+  doc.setFont('helvetica', 'normal'); doc.text(data.invoiceNumber || '-', boxX + 35, detailY); detailY += 4;
+  doc.setFont('helvetica', 'bold'); doc.text('Date:', boxX + 2, detailY);
+  doc.setFont('helvetica', 'normal'); doc.text(data.invoiceDate || '-', boxX + 35, detailY); detailY += 4;
+  doc.setFont('helvetica', 'bold'); doc.text('Place of Supply:', boxX + 2, detailY); doc.setFont('helvetica', 'normal'); doc.text(data.placeOfSupply || data.businessState || '-', boxX + 35, detailY);
+
+  yPos = Math.max(yPos + 30, detailY + 5);
+
+  doc.setDrawColor(r, g, b);
+  doc.setFillColor(r, g, b);
+  doc.rect(margin, yPos, pageWidth - 2 * margin, 4, 'F');
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('BILL TO (CLIENT DETAILS)', margin + 3, yPos + 3);
+  
+  yPos += 8;
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.text(data.clientName || 'Client Name', margin, yPos);
+  yPos += 5;
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 80);
+  if (data.clientAddress) { doc.text(data.clientAddress, margin, yPos); yPos += 4; }
+  if (data.clientGSTIN) { doc.text(`GSTIN: ${data.clientGSTIN}`, margin, yPos); yPos += 4; }
+  if (data.clientState) { doc.text(`State: ${data.clientState}`, margin, yPos); yPos += 4; }
+
+  yPos += 3;
+
+  const tableColumn = ['S.No', 'Description', 'HSN/SAC', 'Qty', `Rate (${data.currency})`, `Amount (${data.currency})`];
+  const tableRows = data.items.map((item, idx) => [
+    (idx + 1).toString(), item.description || '-', item.hsn || '-', item.quantity.toString(), item.rate.toFixed(2), item.amount.toFixed(2)
+  ]);
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [tableColumn],
+    body: tableRows,
+    theme: 'grid',
+    headStyles: { fillColor: [r, g, b], textColor: 255, fontSize: 8, fontStyle: 'bold', halign: 'center' },
+    bodyStyles: { fontSize: 8, textColor: [40, 40, 40] },
+    columnStyles: { 0: { halign: 'center', cellWidth: 12 }, 1: { cellWidth: 70 }, 2: { halign: 'center', cellWidth: 22 }, 3: { halign: 'center', cellWidth: 15 }, 4: { halign: 'right', cellWidth: 28 }, 5: { halign: 'right', cellWidth: 30 } },
+    styles: { cellPadding: 2, lineWidth: 0.1, lineColor: [180, 180, 180] },
+  });
+
+  let finalY = doc.lastAutoTable.finalY + 5;
+  const rightX = pageWidth - margin;
+  const labelX = rightX - 55;
+
+  doc.setDrawColor(220, 220, 220);
+  doc.setFillColor(248, 250, 252);
+  doc.rect(labelX - 5, finalY - 3, 60, 35, 'F');
+
+  doc.setFontSize(8);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Taxable Amount:', labelX, finalY + 1); doc.text(`${data.currency}${data.subtotal.toFixed(2)}`, rightX, finalY + 1, { align: 'right' }); finalY += 5;
+
+  if (!data.isExport) {
+    if (data.igst > 0) { doc.text(`IGST (18%):`, labelX, finalY + 1); doc.text(`${data.currency}${data.igst.toFixed(2)}`, rightX, finalY + 1, { align: 'right' }); finalY += 5; } 
+    else if (data.cgst > 0 || data.sgst > 0) { doc.text(`CGST (9%):`, labelX, finalY + 1); doc.text(`${data.currency}${data.cgst.toFixed(2)}`, rightX, finalY + 1, { align: 'right' }); finalY += 5; doc.text(`SGST (9%):`, labelX, finalY + 1); doc.text(`${data.currency}${data.sgst.toFixed(2)}`, rightX, finalY + 1, { align: 'right' }); finalY += 5; }
+  }
+
+  if (data.tds > 0) { doc.setTextColor(220, 38, 38); doc.text(`TDS (${data.tdsRate}%):`, labelX, finalY + 1); doc.text(`- ${data.currency}${data.tds.toFixed(2)}`, rightX, finalY + 1, { align: 'right' }); doc.setTextColor(0, 0, 0); finalY += 5; }
+
+  doc.setFillColor(r, g, b);
+  doc.rect(labelX - 5, finalY, 60, 7, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('TOTAL:', labelX, finalY + 5);
+  doc.text(`${data.currency}${data.total.toFixed(2)}`, rightX, finalY + 5, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+
+  finalY += 12;
+  if (data.tds > 0) {
+    doc.setTextColor(22, 163, 74);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Amount Payable:', labelX, finalY);
+    doc.text(`${data.currency}${data.amountPayable.toFixed(2)}`, rightX, finalY, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    finalY += 8;
+  }
+
+  // --- UPI QR CODE FOR MODERN TEMPLATE ---
+  if (data.upiId && data.total > 0) {
+    const upiString = `upi://pay?pa=${data.upiId}&pn=${encodeURIComponent(data.businessName || 'Business')}&am=${data.total.toFixed(2)}&cu=INR&tn=Invoice ${data.invoiceNumber}`;
+    try {
+      const qrDataUrl = await QRCode.toDataURL(upiString, { width: 100, margin: 1 });
+      doc.addImage(qrDataUrl, 'PNG', margin, finalY + 5, 30, 30);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('Scan to Pay via UPI', margin + 35, finalY + 15);
+      doc.setFont('helvetica', 'normal');
+      doc.text(data.upiId, margin + 35, finalY + 20);
+      finalY += 35;
+    } catch (e) { console.error('QR Generation failed', e); }
+  }
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Amount in Words:', margin, finalY);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(80, 80, 80);
+  const amountWords = numberToWords(data.total);
+  const splitWords = doc.splitTextToSize(amountWords, pageWidth - 2 * margin - 40);
+  doc.text(splitWords, margin + 35, finalY);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'normal');
+  finalY += splitWords.length * 4 + 5;
+
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.line(rightX - 50, finalY + 15, rightX, finalY + 15);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('For ' + (data.businessName || 'Business'), rightX - 50, finalY + 5);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Authorized Signatory', rightX - 50, finalY + 20);
+
+  finalY += 30;
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(r, g, b);
+  doc.text('Terms & Conditions:', margin, finalY);
+  doc.setTextColor(80, 80, 80);
+  doc.setFont('helvetica', 'normal');
+  const terms = ['1. Payment is due within 15 days from the invoice date.', '2. Interest @18% p.a. will be charged on delayed payments.', '3. Subject to local jurisdiction only.', '4. This is a computer-generated invoice.'];
+  terms.forEach((term, i) => { doc.text(term, margin, finalY + 4 + (i * 3.5)); });
+
+  doc.setFontSize(7);
+  doc.setTextColor(150, 150, 150);
+  doc.text('This is a computer-generated invoice.', pageWidth / 2, 285, { align: 'center' });
+  doc.text('Generated by ZapBill | zapbill.vercel.app', pageWidth / 2, 289, { align: 'center' });
+
+  doc.save(`Tax_Invoice_${data.invoiceNumber}.pdf`);
 };
 
-const createTraditionalPDF = (data: InvoiceData) => {
+const createTraditionalPDF = async (data: InvoiceData) => {
   const doc = new jsPDF('p', 'mm', 'a4');
   const margin = 8;
   const pageWidth = 210;
@@ -86,18 +264,15 @@ const createTraditionalPDF = (data: InvoiceData) => {
   const rightX = margin + leftWidth;
   let yPos = 8;
 
-  // Outer Border
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.5);
   doc.rect(5, 5, 200, 287);
 
-  // Header
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.text('TAX INVOICE', pageWidth / 2, yPos + 5, { align: 'center' });
   yPos += 10;
 
-  // ROW 1: Supplier (Left) | Invoice Meta (Right)
   const row1Height = 32;
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
@@ -140,7 +315,6 @@ const createTraditionalPDF = (data: InvoiceData) => {
   });
   yPos += row1Height;
 
-  // ROW 2: Buyer (Left) | Order Details (Right)
   const row2Height = 28;
   doc.rect(margin, yPos, leftWidth, row2Height);
   doc.setFontSize(7);
@@ -175,7 +349,6 @@ const createTraditionalPDF = (data: InvoiceData) => {
   });
   yPos += row2Height;
 
-  // ITEMS TABLE
   const tableColumn = ['Sl No.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount'];
   const tableRows = data.items.map((item, idx) => [
     (idx + 1).toString(), item.description || '-', item.hsn || '-', `${item.quantity}`, item.rate.toFixed(2), 'PCS', item.amount.toFixed(2)
@@ -202,7 +375,6 @@ const createTraditionalPDF = (data: InvoiceData) => {
 
   let finalY = doc.lastAutoTable.finalY;
 
-  // AMOUNT IN WORDS
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
   doc.rect(margin, finalY, contentWidth, 8);
@@ -214,7 +386,6 @@ const createTraditionalPDF = (data: InvoiceData) => {
   doc.text(wordsText, margin + 55, finalY + 5);
   finalY += 8;
 
-  // HSN SUMMARY TABLE
   const hsnColumn = ['HSN/SAC', 'Taxable Value', 'Central Tax Rate', 'Central Tax Amount', 'State Tax Rate', 'State Tax Amount', 'Total Tax Amount'];
   const hsnRows = data.items.map(item => [
     item.hsn || '-', item.amount.toFixed(2), '9%', (item.amount * 0.09).toFixed(2), '9%', (item.amount * 0.09).toFixed(2), (item.amount * 0.18).toFixed(2)
@@ -240,7 +411,6 @@ const createTraditionalPDF = (data: InvoiceData) => {
 
   finalY = doc.lastAutoTable.finalY + 3;
 
-  // FOOTER
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
   doc.text(`Tax Amount(in words): Indian Rupees ${numberToWords(data.cgst + data.sgst + data.igst).replace('Rupees ', '').replace(' Only', '')} only`, margin, finalY);
@@ -252,6 +422,22 @@ const createTraditionalPDF = (data: InvoiceData) => {
   doc.setFont('helvetica', 'normal');
   doc.line(pageWidth - margin - 55, finalY + 8, pageWidth - margin - 10, finalY + 8);
   doc.text('Authorised Signatory', pageWidth - margin - 55, finalY + 12);
+
+  // --- UPI QR CODE FOR TRADITIONAL TEMPLATE ---
+  if (data.upiId && data.total > 0) {
+    const upiString = `upi://pay?pa=${data.upiId}&pn=${encodeURIComponent(data.businessName || 'Business')}&am=${data.total.toFixed(2)}&cu=INR&tn=Invoice ${data.invoiceNumber}`;
+    try {
+      const qrDataUrl = await QRCode.toDataURL(upiString, { width: 100, margin: 1 });
+      // Place QR code bottom right, above signatory
+      doc.addImage(qrDataUrl, 'PNG', pageWidth - margin - 45, finalY - 15, 35, 35);
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('Scan to Pay via UPI', pageWidth - margin - 27.5, finalY + 25, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+      doc.text(data.upiId, pageWidth - margin - 27.5, finalY + 29, { align: 'center' });
+    } catch (e) { console.error('QR Generation failed', e); }
+  }
 
   finalY += 18;
   doc.setFontSize(7);

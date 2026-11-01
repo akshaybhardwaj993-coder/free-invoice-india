@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { downloadPDF, InvoiceData } from '@/lib/pdf-generator';
 import { supabase } from '@/utils/supabase/client';
-import { Upload, Palette, Users, RefreshCw, LayoutGrid, FileText } from 'lucide-react';
+import { Upload, Palette, Users, RefreshCw, LayoutGrid, FileText, QrCode } from 'lucide-react';
 
 const stateCodes: Record<string, string> = {
   '01': 'Jammu & Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh',
@@ -21,17 +21,19 @@ export default function InvoiceGenerator() {
   
   const [brandColor, setBrandColor] = useState('#2563eb');
   const [businessLogo, setBusinessLogo] = useState<string>('');
+  const [upiId, setUpiId] = useState<string>(''); // NEW: UPI ID State
   const [templateStyle, setTemplateStyle] = useState<'modern' | 'traditional'>('modern');
 
   const [formData, setFormData] = useState({
     businessName: '', businessAddress: '', businessGSTIN: '', businessState: '',
     clientName: '', clientAddress: '', clientGSTIN: '', clientState: 'Maharashtra',
-    invoiceNumber: 'INV-000000', invoiceDate: '', // FIXED: Changed from 'YYYY-MM-DD' to ''
+    invoiceNumber: 'INV-000000', invoiceDate: '',
     deliveryNote: '', buyersOrderNo: '', despatchDocNo: '', termsOfDelivery: 'ON DISPATCH',
   });
 
   const [tdsRate, setTdsRate] = useState<number>(0);
   const [isExport, setIsExport] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -53,6 +55,7 @@ export default function InvoiceGenerator() {
       const parsed = JSON.parse(savedBrand);
       if (parsed.brandColor) setBrandColor(parsed.brandColor);
       if (parsed.businessLogo) setBusinessLogo(parsed.businessLogo);
+      if (parsed.upiId) setUpiId(parsed.upiId); // Load UPI ID
     }
 
     const savedBusiness = localStorage.getItem('invoice_business_details');
@@ -63,8 +66,8 @@ export default function InvoiceGenerator() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('zapbill_brand_settings', JSON.stringify({ brandColor, businessLogo }));
-  }, [brandColor, businessLogo]);
+    localStorage.setItem('zapbill_brand_settings', JSON.stringify({ brandColor, businessLogo, upiId }));
+  }, [brandColor, businessLogo, upiId]);
 
   useEffect(() => {
     if (formData.businessName || formData.businessAddress || formData.businessGSTIN) {
@@ -131,10 +134,22 @@ export default function InvoiceGenerator() {
     }
   };
 
-  const handleDownload = () => {
+  // NEW: Async download handler
+  const handleDownload = async () => {
+    setIsDownloading(true);
     const totals = calculateTotals();
-    console.log('Downloading with templateStyle:', templateStyle);
-    downloadPDF({ ...formData, items, ...totals, tdsRate, isExport, businessLogo, brandColor, templateStyle } as InvoiceData);
+    await downloadPDF({ 
+      ...formData, 
+      items, 
+      ...totals, 
+      tdsRate, 
+      isExport, 
+      businessLogo, 
+      brandColor, 
+      upiId, // Pass UPI ID to PDF generator
+      templateStyle 
+    } as InvoiceData);
+    setIsDownloading(false);
   };
 
   const totals = calculateTotals();
@@ -144,7 +159,7 @@ export default function InvoiceGenerator() {
     <div className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-gray-100 max-w-4xl mx-auto">
       
       <div className="mb-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2"><Palette className="w-4 h-4" /> Brand & Template Settings</h3>
+        <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2"><Palette className="w-4 h-4" /> Brand & Payment Settings</h3>
         <div className="flex flex-wrap gap-6 items-center">
           <div className="flex items-center gap-3">
             <label className="text-sm text-gray-600">Brand Color:</label>
@@ -154,10 +169,22 @@ export default function InvoiceGenerator() {
             <label className="text-sm text-gray-600">Business Logo:</label>
             <label className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border border-gray-300 cursor-pointer hover:bg-gray-100 text-sm">
               <Upload className="w-4 h-4" />
-              {businessLogo ? 'Change Logo' : 'Upload Logo'}
+              {businessLogo ? 'Change' : 'Upload'}
               <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
             </label>
             {businessLogo && <button onClick={() => setBusinessLogo('')} className="text-xs text-red-500 hover:underline">Remove</button>}
+          </div>
+          
+          {/* NEW: UPI ID Input */}
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-gray-600 flex items-center gap-1"><QrCode className="w-4 h-4" /> UPI ID:</label>
+            <input 
+              type="text" 
+              placeholder="e.g., yourname@upi" 
+              value={upiId} 
+              onChange={(e) => setUpiId(e.target.value)} 
+              className="px-3 py-1.5 border border-gray-300 rounded-md text-sm w-40 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            />
           </div>
           
           <div className="flex items-center gap-2 ml-auto">
@@ -328,8 +355,16 @@ export default function InvoiceGenerator() {
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mt-6">
-        <button onClick={handleDownload} disabled={!formData.businessName || !formData.clientName || items.some(i => !i.description)} className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg">
-          Download {templateStyle === 'traditional' ? 'Traditional' : 'Modern'} Tax Invoice PDF
+        <button 
+          onClick={handleDownload} 
+          disabled={!formData.businessName || !formData.clientName || items.some(i => !i.description) || isDownloading} 
+          className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg"
+        >
+          {isDownloading ? (
+            <>Generating QR & PDF...</>
+          ) : (
+            <>Download {templateStyle === 'traditional' ? 'Traditional' : 'Modern'} Tax Invoice PDF</>
+          )}
         </button>
       </div>
     </div>
