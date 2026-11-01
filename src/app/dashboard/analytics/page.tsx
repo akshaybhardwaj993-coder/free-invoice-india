@@ -14,8 +14,8 @@ export default function AnalyticsPage() {
     totalExpenses: 0,
     netProfit: 0,
     profitMargin: 0,
-    monthlyData: [],
-    categoryData: []
+    monthlyData: [] as any[],
+    categoryData: [] as any[]
   });
   const router = useRouter();
 
@@ -39,9 +39,9 @@ export default function AnalyticsPage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
-      const totalRevenue = invoices?.reduce((sum, inv) => sum + (inv.invoice_data?.total || 0), 0) || 0;
-      const incomeFromCashflow = cashflow?.filter(c => c.type === 'income').reduce((sum, c) => sum + c.amount, 0) || 0;
-      const totalExpenses = cashflow?.filter(c => c.type === 'expense').reduce((sum, c) => sum + c.amount, 0) || 0;
+      const totalRevenue = invoices?.reduce((sum: number, inv: any) => sum + (inv.invoice_data?.total || 0), 0) || 0;
+      const incomeFromCashflow = cashflow?.filter((c: any) => c.type === 'income').reduce((sum: number, c: any) => sum + c.amount, 0) || 0;
+      const totalExpenses = cashflow?.filter((c: any) => c.type === 'expense').reduce((sum: number, c: any) => sum + c.amount, 0) || 0;
       const netProfit = (totalRevenue + incomeFromCashflow) - totalExpenses;
       const profitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100) : 0;
 
@@ -57,12 +57,12 @@ export default function AnalyticsPage() {
 
   const prepareMonthlyData = (invoices: any[], cashflow: any[]) => {
     const months: any = {};
-    invoices?.forEach(inv => {
+    invoices?.forEach((inv: any) => {
       const month = new Date(inv.invoice_date).toLocaleString('default', { month: 'short', year: '2-digit' });
       months[month] = months[month] || { month, revenue: 0, expenses: 0 };
       months[month].revenue += inv.invoice_data?.total || 0;
     });
-    cashflow?.filter(c => c.type === 'expense').forEach(cf => {
+    cashflow?.filter((c: any) => c.type === 'expense').forEach((cf: any) => {
       const month = new Date(cf.transaction_date).toLocaleString('default', { month: 'short', year: '2-digit' });
       months[month] = months[month] || { month, revenue: 0, expenses: 0 };
       months[month].expenses += cf.amount;
@@ -72,7 +72,7 @@ export default function AnalyticsPage() {
 
   const prepareCategoryData = (cashflow: any[]) => {
     const categories: any = {};
-    cashflow?.filter(c => c.type === 'expense').forEach(cf => {
+    cashflow?.filter((c: any) => c.type === 'expense').forEach((cf: any) => {
       const category = cf.description.split(' ')[0] || 'Other';
       categories[category] = (categories[category] || 0) + cf.amount;
     });
@@ -159,8 +159,8 @@ export default function AnalyticsPage() {
           <h3 className="text-lg font-bold text-gray-900 mb-4">Expense Breakdown</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
-              <Pie data={stats.categoryData} cx="50%" cy="50%" labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
-                {stats.categoryData.map((entry, index) => (
+              <Pie data={stats.categoryData} cx="50%" cy="50%" labelLine={false} label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`} outerRadius={100} fill="#8884d8" dataKey="value">
+                {stats.categoryData.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
