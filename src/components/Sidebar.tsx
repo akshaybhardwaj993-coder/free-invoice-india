@@ -21,8 +21,8 @@ export default function Sidebar() {
     { name: 'Cash Flow', href: '/dashboard/cashflow', icon: TrendingUp },
     { name: 'My Invoices', href: '/dashboard/invoices', icon: Archive },
     { name: 'Tax Summary', href: '/dashboard/tax-summary', icon: Receipt },
-    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
     { name: 'Clients', href: '/dashboard/clients', icon: Users },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   ];
 
   if (loading) return null;
@@ -57,7 +57,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* User Profile Only (No Logout here anymore) */}
       <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
         {user && (
           <div className="flex items-center gap-3 px-2">
