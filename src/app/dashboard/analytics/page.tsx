@@ -39,14 +39,18 @@ export default function AnalyticsPage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
-      const totalRevenue = invoices?.reduce((sum: number, inv: any) => sum + (inv.invoice_data?.total || 0), 0) || 0;
-      const incomeFromCashflow = cashflow?.filter((c: any) => c.type === 'income').reduce((sum: number, c: any) => sum + c.amount, 0) || 0;
-      const totalExpenses = cashflow?.filter((c: any) => c.type === 'expense').reduce((sum: number, c: any) => sum + c.amount, 0) || 0;
+      // FIX 1: Fallback to empty arrays if null
+      const invArray = invoices || [];
+      const cfArray = cashflow || [];
+
+      const totalRevenue = invArray.reduce((sum: number, inv: any) => sum + (inv.invoice_data?.total || 0), 0);
+      const incomeFromCashflow = cfArray.filter((c: any) => c.type === 'income').reduce((sum: number, c: any) => sum + c.amount, 0);
+      const totalExpenses = cfArray.filter((c: any) => c.type === 'expense').reduce((sum: number, c: any) => sum + c.amount, 0);
       const netProfit = (totalRevenue + incomeFromCashflow) - totalExpenses;
       const profitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100) : 0;
 
-      const monthlyData = prepareMonthlyData(invoices, cashflow);
-      const categoryData = prepareCategoryData(cashflow);
+      const monthlyData = prepareMonthlyData(invArray, cfArray);
+      const categoryData = prepareCategoryData(cfArray);
 
       setStats({ totalRevenue, totalExpenses, netProfit, profitMargin, monthlyData, categoryData });
       setLoading(false);
@@ -57,12 +61,12 @@ export default function AnalyticsPage() {
 
   const prepareMonthlyData = (invoices: any[], cashflow: any[]) => {
     const months: any = {};
-    invoices?.forEach((inv: any) => {
+    invoices.forEach((inv: any) => {
       const month = new Date(inv.invoice_date).toLocaleString('default', { month: 'short', year: '2-digit' });
       months[month] = months[month] || { month, revenue: 0, expenses: 0 };
       months[month].revenue += inv.invoice_data?.total || 0;
     });
-    cashflow?.filter((c: any) => c.type === 'expense').forEach((cf: any) => {
+    cashflow.filter((c: any) => c.type === 'expense').forEach((cf: any) => {
       const month = new Date(cf.transaction_date).toLocaleString('default', { month: 'short', year: '2-digit' });
       months[month] = months[month] || { month, revenue: 0, expenses: 0 };
       months[month].expenses += cf.amount;
@@ -72,7 +76,7 @@ export default function AnalyticsPage() {
 
   const prepareCategoryData = (cashflow: any[]) => {
     const categories: any = {};
-    cashflow?.filter((c: any) => c.type === 'expense').forEach((cf: any) => {
+    cashflow.filter((c: any) => c.type === 'expense').forEach((cf: any) => {
       const category = cf.description.split(' ')[0] || 'Other';
       categories[category] = (categories[category] || 0) + cf.amount;
     });
@@ -80,6 +84,9 @@ export default function AnalyticsPage() {
   };
 
   if (loading) return <div className="p-10 text-center">Loading analytics...</div>;
+
+  // FIX 2: Use 'any' for Recharts Tooltip formatter to satisfy strict typing
+  const formatCurrency = (value: any) => `₹${Number(value).toLocaleString('en-IN')}`;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -147,7 +154,7 @@ export default function AnalyticsPage() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} />
+              <Tooltip formatter={(value: any) => formatCurrency(value)} />
               <Legend />
               <Bar dataKey="revenue" fill="#2563eb" name="Revenue" />
               <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
@@ -164,7 +171,7 @@ export default function AnalyticsPage() {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} />
+              <Tooltip formatter={(value: any) => formatCurrency(value)} />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -177,7 +184,7 @@ export default function AnalyticsPage() {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="month" />
             <YAxis />
-            <Tooltip formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`} />
+            <Tooltip formatter={(value: any) => formatCurrency(value)} />
             <Legend />
             <Line type="monotone" dataKey="revenue" stroke="#2563eb" name="Revenue" />
             <Line type="monotone" dataKey="expenses" stroke="#ef4444" name="Expenses" />
